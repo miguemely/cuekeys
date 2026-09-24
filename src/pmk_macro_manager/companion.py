@@ -219,7 +219,7 @@ class SatelliteClient:
 
     def handle_line(self, line):
         command, params = parse_line(line)
-        if command not in ("KEY-STATE", "PING", "PONG", None):
+        if command not in ("KEY-STATE", "KEY-PRESS", "PING", "PONG", None):
             log.debug("companion <- %s", line.strip()[:200])
         if command == "BEGIN":
             self.api_version = parse_version(params.get("ApiVersion"))
@@ -263,6 +263,7 @@ class SatelliteClient:
             if "PRESSED" in params:
                 state["pressed"] = params["PRESSED"] in ("1", "true")
             if "LOCATION" in params:
+                state["location"] = params["LOCATION"]
                 page = params["LOCATION"].split("/")[0]
                 if page.isdigit():
                     state["page"] = int(page)

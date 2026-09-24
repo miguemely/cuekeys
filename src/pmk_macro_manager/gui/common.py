@@ -68,13 +68,46 @@ def cell_content(config, layer_index, key, companion_states=None):
     if in_companion_region(layer, key, rotation):
         state = (companion_states or {}).get((layer_index, key)) or {}
         text = state.get("text", "") or companion_type_label(state)
-        return text, to_qcolor(state.get("color") or (0, 0, 0))
+        color = to_qcolor(state.get("color") or (0, 0, 0))
+        if text and color.name() == "#000000":
+            # A real black Companion button (not an empty slot): draw it as one.
+            color = QColor(1, 1, 1)
+        return text, color
     return "", QColor("#000000")
 
 
+# Companion's colour for the page/row/column label on its buttons.
+BADGE_COLOR = "#f5c518"
+
+
+def cell_badge(config, layer_index, key, companion_states=None):
+    """Companion "page/row/column" for a key, like Companion shows on its buttons.
+
+    Only for real buttons with content in the Companion region; not for page
+    up/down/number buttons, empty buttons or keys assigned locally.
+    """
+    layer = config["layers"][layer_index]
+    rotation = int(config.get("overlay", {}).get("rotation", 0))
+    if not in_companion_region(layer, key, rotation):
+        return None
+    if key_is_assigned((layer.get("keys") or {}).get(str(key))):
+        return None
+    state = (companion_states or {}).get((layer_index, key)) or {}
+    if not state.get("location") or state.get("type", "BUTTON") != "BUTTON":
+        return None
+    color = state.get("color")
+    if not state.get("text") and (not color or tuple(color) == (0, 0, 0)):
+        return None  # empty button slot
+    return state["location"]
+
+
 def paint_key(p, rect, label, fill, number=None, selected=False, pressed=False,
-              hover=False, radius=8, font_px=11, accent="#5b8cff", empty="#2a2e37"):
-    """Draw one key cap. ``fill`` black (#000000) means "unassigned"."""
+              hover=False, radius=8, font_px=11, accent="#5b8cff", empty="#2a2e37", badge=None):
+    """Draw one key cap. ``fill`` black (#000000) means "unassigned".
+
+    ``badge`` is a small tag drawn in the top-left corner (Companion location),
+    where Companion draws it on its own buttons.
+    """
     from PySide6.QtCore import QPointF, QRectF, Qt
     from PySide6.QtGui import QFont, QLinearGradient, QPen
 
@@ -110,11 +143,27 @@ def paint_key(p, rect, label, fill, number=None, selected=False, pressed=False,
         faded.setAlpha(110)
         p.setPen(faded)
         p.drawText(rect.adjusted(5, 3, -6, -4), Qt.AlignRight | Qt.AlignBottom, str(number))
+    top_inset = 4
+    if badge:
+        small = QFont(p.font())
+        small.setPixelSize(max(8, font_px - 2))
+        small.setBold(True)
+        p.setFont(small)
+        metrics = p.fontMetrics()
+        w = min(metrics.horizontalAdvance(badge) + 8, rect.width() - 6)
+        h = metrics.height() + 1
+        tag = QRectF(rect.left() + 3, rect.top() + 3, w, h)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(0, 0, 0, 150))
+        p.drawRoundedRect(tag, 3, 3)
+        p.setPen(QColor(BADGE_COLOR))
+        p.drawText(tag, Qt.AlignCenter, metrics.elidedText(badge, Qt.ElideRight, int(w - 4)))
+        top_inset = h + 4
     if label:
         font = QFont(p.font())
         font.setPixelSize(font_px)
         font.setBold(True)
         p.setFont(font)
         p.setPen(text_color)
-        inner = QRectF(rect).adjusted(5, 4, -5, -10 if number is not None else -4)
+        inner = QRectF(rect).adjusted(5, top_inset, -5, -10 if number is not None else -4)
         p.drawText(inner, Qt.AlignCenter | Qt.TextWordWrap, label)

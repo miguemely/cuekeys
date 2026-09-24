@@ -93,3 +93,27 @@ def test_companion_page_button_labels():
     assert companion_type_label({"type": "PAGENUM", "page": 4}) == "Page 4"
     assert companion_type_label({"type": "PAGENUM"}) == "Page"
     assert companion_type_label({"type": "PAGEUP"}) == "Page ▲"
+
+
+def test_companion_location_badge_rules():
+    from pmk_macro_manager.config import default_config
+    from pmk_macro_manager.gui.common import cell_badge, cell_content
+
+    config = default_config()
+    config["layers"].append({"name": "C", "mode": "companion", "keys": {
+        "7": {"press": [{"type": "text", "text": "x"}]}}})
+    states = {
+        (1, 3): {"type": "BUTTON", "text": "Go", "color": (0, 0, 0), "location": "5/0/0"},
+        (1, 2): {"type": "PAGENUM", "text": "", "location": "5/1/0", "page_name": "PMK 2"},
+        (1, 11): {"type": "BUTTON", "text": "", "color": (0, 0, 0), "location": "5/0/2"},
+        (1, 15): {"type": "BUTTON", "text": "", "color": (0, 90, 0), "location": "5/0/3"},
+        (1, 7): {"type": "BUTTON", "text": "Mine?", "location": "5/0/1"},
+    }
+    assert cell_badge(config, 1, 3, states) == "5/0/0"    # real (black) button with text
+    assert cell_badge(config, 1, 15, states) == "5/0/3"   # coloured button without text
+    assert cell_badge(config, 1, 2, states) is None       # page number button
+    assert cell_badge(config, 1, 11, states) is None      # empty slot
+    assert cell_badge(config, 1, 7, states) is None       # assigned locally
+    assert cell_badge(config, 1, 0, states) is None       # bottom row is PMK's
+    label, color = cell_content(config, 1, 3, states)
+    assert label == "Go" and color.name() != "#000000"   # drawn as a real button

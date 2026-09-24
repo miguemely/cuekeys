@@ -32,7 +32,7 @@ from .. import __version__, device
 from .. import config as cfg
 from ..layout import COLS, NUM_KEYS, ROWS, cell_to_key, key_to_cell
 from .actions import ActionListEditor
-from .common import cell_content, paint_key, text_color_for, to_qcolor
+from .common import cell_badge, cell_content, paint_key, text_color_for, to_qcolor
 from .overlay import OverlayWindow
 from .settings import SettingsDialog
 from .theme import T, repolish
@@ -123,6 +123,7 @@ class KeyPad(QWidget):
         self.hover = None
         self.rotation = 0
         self.cells = {}
+        self.badges = {}
         self.pressed = set()
         self.region_rows = 0  # rows handed to Companion on this layer (0 = none)
 
@@ -134,6 +135,7 @@ class KeyPad(QWidget):
     def set_state(self, config, layer_index, companion_states, pressed=()):
         self.rotation = int(config.get("overlay", {}).get("rotation", 0))
         self.cells = {k: cell_content(config, layer_index, k, companion_states) for k in range(NUM_KEYS)}
+        self.badges = {k: cell_badge(config, layer_index, k, companion_states) for k in range(NUM_KEYS)}
         self.pressed = set(pressed)
         layer = config["layers"][layer_index]
         self.region_rows = cfg.companion_rows(layer) if layer.get("mode") == "companion" else 0
@@ -203,7 +205,7 @@ class KeyPad(QWidget):
             paint_key(p, self._cell_rect(row, col), label, color, number=key,
                       selected=key == self.current, pressed=key in self.pressed,
                       hover=key == self.hover, radius=10, font_px=max(10, int(tile / 7.5)),
-                      accent=T["accent"], empty=T["empty_key"])
+                      accent=T["accent"], empty=T["empty_key"], badge=self.badges.get(key))
         if region is not None:
             # Legends sit on the left edge (in the chassis margin), after the keys so
             # nothing covers them.

@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget
 
 from ..config import DEFAULT_OVERLAY_LEVELS
 from ..layout import COLS, NUM_KEYS, ROWS, cell_to_key, key_to_cell
-from .common import cell_content, paint_key, to_qcolor
+from .common import cell_badge, cell_content, paint_key, to_qcolor
 from .theme import T
 
 HEADER = 30
@@ -196,5 +196,6 @@ class OverlayWindow(QWidget):
             row, col = key_to_cell(key, rotation)
             label, color = cell_content(config, layer_index, key, runtime.companion_states)
             paint_key(p, self._cell_rect(row, col), label, color, pressed=key in self.pressed,
-                      radius=7, font_px=max(9, key_size // 6), empty=T["empty_key"])
+                      radius=7, font_px=max(9, key_size // 6), empty=T["empty_key"],
+                      badge=cell_badge(config, layer_index, key, runtime.companion_states))
         p.end()

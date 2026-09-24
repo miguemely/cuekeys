@@ -188,3 +188,26 @@ def test_companion_device_id_default_is_stable():
     layer = {"name": "x"}
     assert companion_device_id(layer, 2) == companion_device_id(layer, 2)
     assert companion_device_id({"companion_id": "abc"}, 2) == "abc"
+
+
+def test_companion_page_name_is_fetched_and_applied(monkeypatch):
+    from pmk_macro_manager import companion as comp
+
+    config = default_config()
+    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
+    rt, events = make(config)
+    rt._device_layers = {"pad1": 1}
+    calls = []
+    monkeypatch.setattr(comp, "page_name", lambda host, port, page: calls.append((host, port, page)) or "PMK 1")
+    rt._on_companion_state("pad1", 1, {"type": "PAGENUM", "text": "", "page": 4})
+    assert rt.companion_page_label(1) == "p.4"          # name not fetched yet
+    job = rt._jobs.get_nowait()
+    assert job == ("page_name", (1, "default", 4))
+    rt._fetch_page_name(*job[1])
+    assert calls == [("127.0.0.1", 8000, 4)]
+    assert rt.companion_states[(1, 7)]["page_name"] == "PMK 1"
+    assert rt.companion_page_label(1) == "PMK 1"
+    assert events[-1][0] == "companion"
+    # later updates for the same page keep the name without another fetch
+    rt._on_companion_state("pad1", 1, {"type": "PAGENUM", "text": "", "page": 4, "color": (1, 2, 3)})
+    assert rt.companion_states[(1, 7)]["page_name"] == "PMK 1" and rt._jobs.empty()

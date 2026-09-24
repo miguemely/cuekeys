@@ -174,9 +174,9 @@ class OverlayWindow(QWidget):
             state = runtime.companion_status(layer.get("companion_target", "default"))
             status = {"online": ("Companion", T["success"]), "busy": ("Companion busy", T["warn"]),
                       "offline": ("Companion offline", T["danger"])}[state]
-            page = runtime.companion_pages.get(layer_index)
-            if state == "online" and page is not None:
-                status = ("Companion p.%d" % page, T["success"])
+            page = runtime.companion_page_label(layer_index)
+            if state == "online" and page:
+                status = ("Companion · %s" % page, T["success"])
         header = QRectF(PAD + 12, PAD, x0 - PAD - 18, HEADER - 6)
         p.setPen(QColor(T["text"]))
         metrics = p.fontMetrics()

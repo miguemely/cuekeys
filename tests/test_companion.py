@@ -140,3 +140,25 @@ def test_http_button():
     t.join(5)
     httpd.server_close()
     assert hits == ["/api/location/2/1/3/down"]
+
+
+def test_page_name_over_http():
+    paths = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            paths.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"PMK 1")
+
+        def log_message(self, *args):
+            pass
+
+    httpd = HTTPServer(("127.0.0.1", 0), Handler)
+    t = threading.Thread(target=httpd.handle_request)
+    t.start()
+    assert comp.page_name("127.0.0.1", httpd.server_port, 4) == "PMK 1"
+    t.join(5)
+    httpd.server_close()
+    assert paths == ["/api/variable/internal/page_number_4_name/value"]

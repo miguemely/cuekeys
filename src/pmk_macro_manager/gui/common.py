@@ -45,6 +45,17 @@ def key_label(key_cfg):
 COMPANION_TYPE_LABELS = {"PAGEUP": "Page ▲", "PAGEDOWN": "Page ▼", "PAGENUM": "Page"}
 
 
+def companion_type_label(state):
+    kind = state.get("type")
+    if kind == "PAGENUM":
+        # Companion draws the page name on this button; so do we once it's known.
+        if state.get("page_name"):
+            return state["page_name"]
+        if state.get("page") is not None:
+            return "Page %d" % state["page"]
+    return COMPANION_TYPE_LABELS.get(kind, "")
+
+
 def cell_content(config, layer_index, key, companion_states=None):
     """(label, QColor) for a key as the overlay/editor should show it."""
     layers = config["layers"]
@@ -56,7 +67,7 @@ def cell_content(config, layer_index, key, companion_states=None):
     rotation = int(config.get("overlay", {}).get("rotation", 0))
     if in_companion_region(layer, key, rotation):
         state = (companion_states or {}).get((layer_index, key)) or {}
-        text = state.get("text", "") or COMPANION_TYPE_LABELS.get(state.get("type"), "")
+        text = state.get("text", "") or companion_type_label(state)
         return text, to_qcolor(state.get("color") or (0, 0, 0))
     return "", QColor("#000000")
 

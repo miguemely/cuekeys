@@ -51,6 +51,7 @@ class Runtime:
         self.companion_states = {}        # (layer, key) -> state dict
         self.companion_connected = {}     # target -> bool
         self.companion_pages = {}         # layer -> Companion page shown on its surface
+        self.companion_page_names = {}    # (target, page) -> page name from Companion
         self.satellites = {}              # target -> SatelliteClient
         self._device_layers = {}          # satellite device id -> layer index
         self.osc = OscSender()
@@ -228,6 +229,8 @@ class Runtime:
                                                       ma2.get("user", "administrator"),
                                                       ma2.get("password", ""))
                     self._ma2.send(payload)
+                elif kind == "page_name":
+                    self._fetch_page_name(*payload)
                 elif kind == "companion":
                     target = self._bridge("companion").get(payload.get("target", "default"))
                     if target is None:
@@ -296,6 +299,27 @@ class Runtime:
         self.companion_connected[target] = connected
         self.emit("companion", target=target, connected=connected)
 
+    def _layer_target(self, layer):
+        return self.config["layers"][layer].get("companion_target", "default")
+
+    def companion_page_label(self, layer):
+        """"PMK 1" (page name), "p.4" (number only) or None if unknown."""
+        page = self.companion_pages.get(layer)
+        if page is None:
+            return None
+        return self.companion_page_names.get((self._layer_target(layer), page)) or "p.%d" % page
+
+    def _fetch_page_name(self, layer, target, page):
+        conf = self._bridge("companion").get(target) or {}
+        name = comp.page_name(conf.get("host", "127.0.0.1"), conf.get("http_port", 8000), page)
+        self.companion_page_names[(target, page)] = name
+        if self.companion_pages.get(layer) != page:
+            return
+        for (state_layer, key), state in list(self.companion_states.items()):
+            if state_layer == layer and state.get("page") == page:
+                self.companion_states[(layer, key)] = dict(state, page_name=name)
+        self.emit("companion", layer=layer, key=None, state=None)
+
     def _forget_companion_states(self, layer):
         for key in [k for k in self.companion_states if k[0] == layer]:
             del self.companion_states[key]
@@ -307,9 +331,17 @@ class Runtime:
         if layer is None or not 0 <= index < 16:
             return
         key = key_from_satellite(index, self._rotation())
+        page = state.get("page")
+        if page is not None:
+            target = self._layer_target(layer)
+            if self.companion_pages.get(layer) != page:
+                self.companion_pages[layer] = page
+                # Page names aren't part of the Satellite protocol; ask the HTTP API.
+                self._jobs.put(("page_name", (layer, target, page)))
+            name = self.companion_page_names.get((target, page))
+            if name:
+                state = dict(state, page_name=name)
         self.companion_states[(layer, key)] = state
-        if state.get("page") is not None and self.companion_pages.get(layer) != state["page"]:
-            self.companion_pages[layer] = state["page"]
         self.link.send({"t": "led", "l": layer, "k": key, "rgb": list(state.get("color") or (0, 0, 0))})
         self.emit("companion", layer=layer, key=key, state=state)
 

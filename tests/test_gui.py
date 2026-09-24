@@ -84,3 +84,12 @@ def test_overlay_cycle_levels(window, qtbot):
     assert window.overlay_action.isChecked()
     overlay.run_command("hide")
     assert not overlay.isVisible() and not window.overlay_action.isChecked()
+
+
+def test_companion_page_button_labels():
+    from pmk_macro_manager.gui.common import companion_type_label
+
+    assert companion_type_label({"type": "PAGENUM", "page": 4, "page_name": "PMK 1"}) == "PMK 1"
+    assert companion_type_label({"type": "PAGENUM", "page": 4}) == "Page 4"
+    assert companion_type_label({"type": "PAGENUM"}) == "Page"
+    assert companion_type_label({"type": "PAGEUP"}) == "Page ▲"

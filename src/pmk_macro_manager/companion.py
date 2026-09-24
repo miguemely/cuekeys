@@ -16,6 +16,7 @@ import re
 import socket
 import threading
 import time
+import urllib.parse
 import urllib.request
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,18 @@ def http_button(host, port, page, row, column, op="press", timeout=2.0):
     req = urllib.request.Request(url, data=b"", method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.status
+
+
+def variable_value(host, port, connection, name, timeout=2.0):
+    """Read a Companion variable, e.g. ("internal", "page_number_4_name")."""
+    url = "http://%s:%d/api/variable/%s/%s/value" % (
+        host, int(port), urllib.parse.quote(connection), urllib.parse.quote(name))
+    with urllib.request.urlopen(url, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="replace").strip()
+
+
+def page_name(host, port, page, timeout=2.0):
+    return variable_value(host, port, "internal", "page_number_%d_name" % int(page), timeout)
 
 
 # ------------------------------------------------------------------ satellite

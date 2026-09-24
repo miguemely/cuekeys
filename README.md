@@ -1,0 +1,161 @@
+# PMK Macro Manager
+
+Create, edit and manage macros on a **Pimoroni Keybow 2040** or **Pico RGB Keypad Base**, on Windows, macOS and Linux.
+
+- **Macros**: key combos, typed text, delays, key down/up, media keys, all in one sequence. Keys can be tap/hold.
+- **Layers**: any number of layers, switched by goto, next/prev, toggle or momentary (held) layer keys.
+- **On-screen overlay**: a small floating window in the bottom-right corner, semi-transparent and always on top. It shows what every key does, the current layer, and which keys are held down.
+- **MIDI / MIDI Show Control**: sent straight from the keypad over USB-MIDI, so it works with no software running.
+- **OSC, grandMA2 and grandMA3**: MA3 command-line OSC (`/gma3/cmd`), MA2 Telnet commands, and any OSC message.
+- **Bitfocus Companion**: press a Companion button over HTTP, or make a whole layer a Companion *Satellite surface*. Companion then controls those keys, and its button colours and text show on the keypad LEDs and on the overlay.
+- **GitLab CI/CD**: lint, tests on Python 3.10–3.13, a wheel, a firmware zip, desktop apps for all three OSes, and a GitLab Release.
+
+```
+ ┌──────────── keypad (CircuitPython) ────────────┐         ┌──────────── host app (Python / Qt) ─────────────┐
+ │ code.py + lib/pmkmacro (layers, macro engine)  │  USB    │ editor ─ overlay ─ runtime                       │
+ │   ├─ USB HID keyboard / media keys  ───────────┼────────▶│   ├─ OSC (UDP)             ─▶ anything OSC       │
+ │   ├─ USB MIDI  (notes, CC, PC, MSC) ───────────┼────────▶│   ├─ grandMA3 OSC /cmd     ─▶ grandMA3           │
+ │   └─ usb_cdc data: JSON lines  ◀───────────────┼────────▶│   ├─ grandMA2 Telnet       ─▶ grandMA2           │
+ │      (layer, key events, osc/ma/companion)     │         │   └─ Companion HTTP + Satellite ◀▶ Companion     │
+ └────────────────────────────────────────────────┘         └──────────────────────────────────────────────────┘
+```
+
+The keypad works on its own for keyboard, media and MIDI actions. The host app is only needed for the editor, the overlay and the network actions (OSC, grandMA, Companion).
+
+## Install
+
+**Desktop app**: download the zip for your OS from the GitLab Releases page.
+
+**From source** (Python 3.10+):
+
+```bash
+python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[gui]"
+pmm            # opens the editor
+```
+
+## Set up the keypad
+
+1. Flash CircuitPython 9 or newer: [Keybow 2040](https://circuitpython.org/board/pimoroni_keybow2040/) or [Raspberry Pi Pico](https://circuitpython.org/board/raspberry_pi_pico/) for the RGB Keypad Base.
+2. Copy the contents of `pmk-macro-manager-firmware-<version>.zip` (from Releases, or built with `python scripts/build_firmware_bundle.py`) onto the `CIRCUITPY` drive. It contains the firmware and every library it needs (`pmk`, `adafruit_hid`, LED drivers).
+   - Or, if the libraries are already on the drive: **Keypad → Install / update firmware** in the editor, or `pmm install-firmware`.
+3. **Unplug and replug the keypad once.** `boot.py` turns on the second USB serial port that the host app uses, and that only takes effect after a hard reset.
+4. Edit your layout and click **Keypad → Deploy layout to keypad** (Ctrl+D). The keypad reloads by itself.
+
+For the Pico RGB Keypad Base, set **Settings → Keypad → Hardware** to `rgbkeypad`.
+
+## Using the editor
+
+- **Layers** (left): add, duplicate, reorder, and set a name, colour and mode (`local` or `companion`).
+- **Key grid** (centre): laid out like the physical pad, with the USB connector at the top. Click a key to edit it. Keys held down on the real keypad light up live.
+- **Key editor** (right): label and colour, plus three action lists:
+  - **Press / tap**: runs when pressed. If the key also has Hold actions, it runs on a short tap instead.
+  - **Hold**: runs once the key has been held for `hold_time_ms` (500 ms by default).
+  - **Release**: runs when the key is released.
+  - **Record…** captures key combos as you type them. It can keep the delays between them.
+- Actions that have a natural "off" undo themselves on release: held key combos, MIDI notes in `momentary` mode, momentary layers, and OSC `release_args` / MA `release_command`.
+- `PRIMARY` is a cross-platform modifier. It sends Cmd on macOS and Ctrl on Windows and Linux. The host app tells the keypad which OS it is plugged into. Set `host_os` if the keypad runs without the app.
+
+Layouts are plain JSON. Save them anywhere, keep them in git, and share them. Only the `device` and `layers` sections go onto the keypad, so network settings and passwords stay on the computer.
+
+### Overlay
+
+The overlay shows the current layer (`2/4 grandMA3`), each key's label and colour, held keys, and whether the keypad and Companion are connected. Change it in **Settings → Overlay**: opacity, corner, size, rotation, and click-through. When click-through is off, you can click keys to trigger them, scroll to change layer, and right-click for the next layer.
+
+Run only the overlay and bridge, for example on a show machine, with `pmm overlay layout.json`. It puts an icon in the system tray.
+
+On Linux Wayland sessions the app uses XWayland (`QT_QPA_PLATFORM=xcb`), because Wayland doesn't let windows stay on top or choose their own position.
+
+## Action reference
+
+| Type | Runs on | Fields |
+|---|---|---|
+| `keys` | keypad | `keys` (e.g. `["PRIMARY","SHIFT","S"]`), `mode` `tap`/`hold` |
+| `text` | keypad | `text` (typed using `keyboard_layout`) |
+| `delay` | keypad | `ms` |
+| `key_down` / `key_up` / `release_all` | keypad | `keys` |
+| `consumer` | keypad | `code` (PLAY_PAUSE, MUTE, VOLUME_INCREMENT, …) |
+| `layer` | keypad | `op` goto/next/prev/toggle/momentary, `layer` |
+| `midi_note` | keypad | `note`, `velocity`, `channel`, `mode` momentary/tap/toggle |
+| `midi_cc` | keypad | `cc`, `value`, `release_value`, `channel` |
+| `midi_pc` | keypad | `program`, `channel` |
+| `msc` | keypad | MIDI Show Control: `command` (go, stop, resume, fire, set, …), `cue`, `cue_list`, `cue_path`, `macro`, `control`/`value`, `device_id`, `command_format` |
+| `osc` | host | `address`, `args` (JSON list), `release_args`, `target` |
+| `ma` | host | grandMA `command`, `release_command`, `console` `ma3`/`ma2` |
+| `companion` | host | `page`, `row`, `column`, `mode` hold/press, `target` |
+| `companion_page` | host | `direction` next/prev: pages the Companion surface of the current layer (Companion 4.3+) |
+| `overlay` | host | `op` cycle/toggle/show/hide, `levels` (default `[0.9, 0.6, 0.3, 0]`, where 0 hides it) |
+| `host` | host | `event`, `data` (goes to the host app's listeners) |
+
+## grandMA2 / grandMA3
+
+| Method | grandMA2 | grandMA3 | Setup |
+|---|---|---|---|
+| MIDI notes (`midi_note`, momentary) | ✔ MIDI Remotes | ✔ MIDI Remotes | Set the keypad as MIDI input and map notes to executors. |
+| MIDI Show Control (`msc`) | ✔ | ✔ | Enable MSC In. Device ID and command format must match (`all` / 127 accepts everything). On MA2 in *Exec.Page* mode, `cue_list` is `executor.page` (e.g. `1.1`). |
+| Command line (`ma`, console `ma3`) | – | ✔ OSC | Menu → In & Out → OSC: add an input on the port set under **Settings → grandMA**, tick *Receive* and *Receive Command*. The prefix (default `gma3`) gives `/gma3/cmd`. |
+| Command line (`ma`, console `ma2`) | ✔ Telnet | – | Setup → Console → Global Settings → Telnet: *Login Enabled*. Port 30000, user `administrator`. |
+| Raw OSC (`osc`) | – | ✔ | e.g. `/gma3/Page1/Fader201` `[100]`, with `release_args` `[0]` |
+
+On MA3 `ma` keys, `release_command` works as a flash (for example `Go+ Executor 201` / `Off Executor 201`).
+
+## Bitfocus Companion
+
+Add a server under **Settings → OSC & Companion**, e.g. `{"default": {"host": "10.0.0.5", "http_port": 8000, "satellite_port": 16622}}`.
+
+- **Companion button action**: presses `page/row/column` through Companion's HTTP remote API. In `hold` mode it sends down on press and up on release.
+- **Companion layer** (layer mode `companion`): the host registers that layer with Companion as a **Satellite** surface (TCP 16622). The default size is **4×3**: the top three rows belong to Companion, and the **bottom row stays PMK's**. Choose *4×4 · whole keypad* in the layer settings if you want Companion to have all 16 keys. In the Companion region, unassigned keys go to Companion. Companion's button colour drives the key LED, and its text becomes the overlay label. Keys you assign locally still override Companion. Each Companion layer is a separate surface with a stable ID (`companion_id`).
+  - **Give the surface its own pages:** in Companion → Surfaces → your PMK surface, set *Startup Page* and turn on *Restrict pages accessible to this surface*. Companion's grid must be at least 4×3; use *Resize grid to fit* if Companion offers it.
+  - **Bottom-row keys** in the demo layout: layer switch, `◀ Page` / `Page ▶` (`companion_page`, which pages through the allowed pages), and `Overlay opacity` (`overlay` cycle: 90 % → 60 % → 30 % → hidden). Page keys need Companion 4.3+ (Satellite API 1.10). The overlay header shows the surface's current page (`Companion p.4`).
+
+The Satellite connection comes from the host app, so a Companion layer needs the app (or `pmm overlay` / `pmm bridge`) running.
+
+## Command line
+
+```bash
+pmm                         # editor (last opened layout)
+pmm gui layout.json         # editor with a file
+pmm overlay layout.json     # overlay + bridge only
+pmm bridge layout.json -v   # headless bridge (OSC / grandMA / Companion)
+pmm init --example demo.json
+pmm validate layout.json
+pmm deploy layout.json [--drive /Volumes/CIRCUITPY]
+pmm install-firmware [layout.json] [--drive …] [--no-boot]
+pmm devices                 # detected CIRCUITPY drives + serial data port
+```
+
+## Keypad ↔ host protocol
+
+Newline-separated JSON over the CircuitPython `usb_cdc.data` port.
+
+- keypad → host: `hello`, `layer {i,name,count}`, `key {k,s,l}`, `osc {addr,args,target}`, `ma {cmd,console}`, `companion {page,row,column,op,target}`, `host`, `log`
+- host → keypad: `hello?`, `os {os}`, `layer {i}`, `press/release {k}`, `led {l,k,rgb}` (Companion colours), `reload`
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest            # includes the firmware engine, run on desktop Python
+ruff check .
+```
+
+- `firmware/lib/pmkmacro/` is plain Python that doesn't depend on any hardware. It runs on the keypad and in the tests, with a fake clock and a fake backend.
+- `src/pmk_macro_manager/config.py` holds the schema. The editor forms and validation are generated from `ACTION_SPECS`. A test checks that the firmware and the host support the same action types.
+- `firmware/config.json` is the starter layout. It is generated from `examples.py`, and a test keeps the two in sync.
+
+### CI/CD (GitLab)
+
+`.gitlab-ci.yml` runs:
+
+1. **lint**: ruff, plus a check that the tag matches the package version.
+2. **test**: pytest on Python 3.10–3.13, with the Qt GUI tests running headless.
+3. **build**: the wheel/sdist and the firmware zip.
+4. **package**: PyInstaller desktop apps for Linux, Windows and macOS. These run on tags, and can be started by hand on the default branch.
+5. **release**: uploads to the Generic Package Registry and creates a GitLab Release. There is also an optional manual PyPI upload when `PYPI_TOKEN` is set.
+
+Runner notes:
+- The Windows job uses GitLab's hosted Windows runners (`saas-windows-medium-amd64`).
+- macOS hosted runners need Premium or Ultimate. Otherwise set `MACOS_RUNNER_TAG` to the tag of a self-hosted Mac runner.
+- Set `GITHUB_TOKEN` to avoid GitHub API rate limits when building the firmware zip. Set `ADAFRUIT_BUNDLE` / `PMK_REF` to pin library versions.
+
+To release: bump `__version__` in `src/pmk_macro_manager/__init__.py`, then tag `vX.Y.Z` and push the tag.

@@ -1,0 +1,598 @@
+{
+  "version": 1,
+  "device": {
+    "hardware": "keybow2040",
+    "brightness": 0.5,
+    "hold_time_ms": 500,
+    "debounce_ms": 15,
+    "midi_channel": 1,
+    "keyboard_layout": "us",
+    "host_os": "auto",
+    "pressed_color": "#ffffff"
+  },
+  "layers": [
+    {
+      "name": "Editing",
+      "color": "#3050ff",
+      "mode": "local",
+      "keys": {
+        "0": {
+          "label": "Next layer\n(hold: home)",
+          "color": "#ffffff",
+          "press": [
+            {
+              "type": "layer",
+              "op": "next"
+            }
+          ],
+          "hold": [
+            {
+              "type": "layer",
+              "op": "goto",
+              "layer": 0
+            }
+          ]
+        },
+        "1": {
+          "label": "Vol -",
+          "color": "#ff8800",
+          "press": [
+            {
+              "type": "consumer",
+              "code": "VOLUME_DECREMENT"
+            }
+          ]
+        },
+        "2": {
+          "label": "Save",
+          "color": "#20c050",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "S"
+              ],
+              "mode": "tap"
+            }
+          ]
+        },
+        "3": {
+          "label": "Copy",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "C"
+              ],
+              "mode": "tap"
+            }
+          ]
+        },
+        "5": {
+          "label": "Mute",
+          "color": "#ff8800",
+          "press": [
+            {
+              "type": "consumer",
+              "code": "MUTE"
+            }
+          ]
+        },
+        "6": {
+          "label": "Hello",
+          "press": [
+            {
+              "type": "text",
+              "text": "Hello from PMK!"
+            }
+          ]
+        },
+        "7": {
+          "label": "Paste",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "V"
+              ],
+              "mode": "tap"
+            }
+          ]
+        },
+        "9": {
+          "label": "Vol +",
+          "color": "#ff8800",
+          "press": [
+            {
+              "type": "consumer",
+              "code": "VOLUME_INCREMENT"
+            }
+          ]
+        },
+        "10": {
+          "label": "Select all\n+ copy",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "A"
+              ],
+              "mode": "tap"
+            },
+            {
+              "type": "delay",
+              "ms": 50
+            },
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "C"
+              ],
+              "mode": "tap"
+            }
+          ]
+        },
+        "11": {
+          "label": "Undo",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "Z"
+              ],
+              "mode": "tap"
+            }
+          ]
+        },
+        "13": {
+          "label": "Play",
+          "color": "#ff8800",
+          "press": [
+            {
+              "type": "consumer",
+              "code": "PLAY_PAUSE"
+            }
+          ]
+        },
+        "14": {
+          "label": "Shift\n(held)",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "SHIFT"
+              ],
+              "mode": "hold"
+            }
+          ]
+        },
+        "15": {
+          "label": "Redo",
+          "press": [
+            {
+              "type": "keys",
+              "keys": [
+                "PRIMARY",
+                "SHIFT",
+                "Z"
+              ],
+              "mode": "tap"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "grandMA3",
+      "color": "#ffb000",
+      "mode": "local",
+      "keys": {
+        "0": {
+          "label": "Next layer\n(hold: home)",
+          "color": "#ffffff",
+          "press": [
+            {
+              "type": "layer",
+              "op": "next"
+            }
+          ],
+          "hold": [
+            {
+              "type": "layer",
+              "op": "goto",
+              "layer": 0
+            }
+          ]
+        },
+        "2": {
+          "label": "Clear",
+          "press": [
+            {
+              "type": "ma",
+              "console": "ma3",
+              "command": "Clear"
+            }
+          ]
+        },
+        "3": {
+          "label": "Go+ 201",
+          "color": "#20c050",
+          "press": [
+            {
+              "type": "ma",
+              "console": "ma3",
+              "command": "Go+ Executor 201"
+            }
+          ]
+        },
+        "6": {
+          "label": "MSC Go\ncue 1",
+          "color": "#00c0ff",
+          "press": [
+            {
+              "type": "msc",
+              "command": "go",
+              "cue": "1",
+              "device_id": 127,
+              "command_format": "all"
+            }
+          ]
+        },
+        "7": {
+          "label": "Go- 201",
+          "press": [
+            {
+              "type": "ma",
+              "console": "ma3",
+              "command": "Go- Executor 201"
+            }
+          ]
+        },
+        "10": {
+          "label": "MSC fire\nmacro 1",
+          "color": "#00c0ff",
+          "press": [
+            {
+              "type": "msc",
+              "command": "fire",
+              "macro": 1,
+              "device_id": 127,
+              "command_format": "all"
+            }
+          ]
+        },
+        "11": {
+          "label": "Pause 201",
+          "color": "#ffff00",
+          "press": [
+            {
+              "type": "ma",
+              "console": "ma3",
+              "command": "Pause Executor 201"
+            }
+          ]
+        },
+        "14": {
+          "label": "Fader 201\n100%",
+          "color": "#c000ff",
+          "press": [
+            {
+              "type": "osc",
+              "address": "/gma3/Page1/Fader201",
+              "args": [
+                100
+              ],
+              "release_args": [
+                0
+              ],
+              "target": "default"
+            }
+          ]
+        },
+        "15": {
+          "label": "Off 201",
+          "color": "#ff2020",
+          "press": [
+            {
+              "type": "ma",
+              "console": "ma3",
+              "command": "Off Executor 201"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "grandMA2",
+      "color": "#ff5000",
+      "mode": "local",
+      "keys": {
+        "0": {
+          "label": "Next layer\n(hold: home)",
+          "color": "#ffffff",
+          "press": [
+            {
+              "type": "layer",
+              "op": "next"
+            }
+          ],
+          "hold": [
+            {
+              "type": "layer",
+              "op": "goto",
+              "layer": 0
+            }
+          ]
+        },
+        "1": {
+          "label": "Exec note 7",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 7,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "2": {
+          "label": "Exec note 3",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 3,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "3": {
+          "label": "Exec note 0",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 0,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "4": {
+          "label": "Exec note 11",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 11,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "5": {
+          "label": "Exec note 8",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 8,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "6": {
+          "label": "Exec note 4",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 4,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "7": {
+          "label": "Exec note 1",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 1,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "8": {
+          "label": "Exec note 12",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 12,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "9": {
+          "label": "Exec note 9",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 9,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "10": {
+          "label": "Exec note 5",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 5,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "11": {
+          "label": "Exec note 2",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 2,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "12": {
+          "label": "Exec note 13",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 13,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "13": {
+          "label": "Exec note 10",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 10,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "14": {
+          "label": "Exec note 6",
+          "press": [
+            {
+              "type": "midi_note",
+              "note": 6,
+              "velocity": 127,
+              "mode": "momentary"
+            }
+          ]
+        },
+        "15": {
+          "label": "Telnet\nGo 1.1",
+          "color": "#20c050",
+          "press": [
+            {
+              "type": "ma",
+              "console": "ma2",
+              "command": "Go Executor 1.1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Companion",
+      "color": "#e03030",
+      "mode": "companion",
+      "companion_id": "pmk-example",
+      "companion_rows": 3,
+      "keys": {
+        "0": {
+          "label": "Next layer\n(hold: home)",
+          "color": "#ffffff",
+          "press": [
+            {
+              "type": "layer",
+              "op": "next"
+            }
+          ],
+          "hold": [
+            {
+              "type": "layer",
+              "op": "goto",
+              "layer": 0
+            }
+          ]
+        },
+        "4": {
+          "label": "\u25c0 Page",
+          "color": "#4a5670",
+          "press": [
+            {
+              "type": "companion_page",
+              "direction": "prev"
+            }
+          ]
+        },
+        "8": {
+          "label": "Page \u25b6",
+          "color": "#4a5670",
+          "press": [
+            {
+              "type": "companion_page",
+              "direction": "next"
+            }
+          ]
+        },
+        "12": {
+          "label": "Overlay\nopacity",
+          "color": "#8a5cff",
+          "press": [
+            {
+              "type": "overlay",
+              "op": "cycle",
+              "levels": [
+                0.9,
+                0.6,
+                0.3,
+                0
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "bridge": {
+    "osc_targets": {
+      "default": {
+        "host": "127.0.0.1",
+        "port": 8000
+      }
+    },
+    "ma3": {
+      "host": "127.0.0.1",
+      "port": 8000,
+      "prefix": "gma3"
+    },
+    "ma2": {
+      "host": "127.0.0.1",
+      "port": 30000,
+      "user": "administrator",
+      "password": ""
+    },
+    "companion": {
+      "default": {
+        "host": "127.0.0.1",
+        "http_port": 8000,
+        "satellite_port": 16622
+      }
+    }
+  },
+  "overlay": {
+    "enabled": true,
+    "opacity": 0.8,
+    "corner": "bottom-right",
+    "margin": 24,
+    "key_size": 64,
+    "click_through": true,
+    "rotation": 0
+  }
+}

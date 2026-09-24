@@ -1,0 +1,18 @@
+{
+  "id": "rgbkeypad",
+  "name": "Pimoroni Pico RGB Keypad Base",
+  "vendor": "Pimoroni",
+  "description": "4x4 silicone keypad with per-key RGB (APA102) for a Raspberry Pi Pico.",
+  "board_ids": ["raspberry_pi_pico", "raspberry_pi_pico_w"],
+  "grid": [
+    [3, 7, 11, 15],
+    [2, 6, 10, 14],
+    [1, 5, 9, 13],
+    [0, 4, 8, 12]
+  ],
+  "leds": "rgb",
+  "connector": "top",
+  "driver": "pmk_rgbkeypad",
+  "driver_config": {},
+  "libraries": ["pmk", "adafruit_dotstar", "adafruit_pixelbuf"]
+}

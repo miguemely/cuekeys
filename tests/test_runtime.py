@@ -31,8 +31,8 @@ class FakeSatellite:
         self.host, self.port, self.devices, self.registered = host, int(port), {}, {}
         self.connected = True
 
-    def add_device(self, device_id, name, keys_total=16):
-        self.devices[device_id] = (name, keys_total)
+    def add_device(self, device_id, name, keys_total=16, keys_per_row=4):
+        self.devices[device_id] = (name, keys_total, keys_per_row)
 
     def change_page(self, device_id, forward=True):
         self.pages.append((device_id, forward))
@@ -175,10 +175,14 @@ def test_satellites_follow_companion_layers():
     assert rt.satellites == {}
     config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 12)}  # 4x3 by default
+    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 12, 4)}  # 4x3 by default
     config["layers"][-1]["companion_rows"] = 4
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 16)}
+    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 16, 4)}
+    config["device"]["profile"] = "adafruit_macropad"   # 3 wide, 4 tall
+    config["layers"][-1].pop("companion_rows")
+    rt.set_config(config)
+    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 9, 3)}
     config["layers"][-1]["mode"] = "local"
     rt.set_config(config)
     assert rt.satellites == {}
@@ -188,6 +192,23 @@ def test_companion_device_id_default_is_stable():
     layer = {"name": "x"}
     assert companion_device_id(layer, 2) == companion_device_id(layer, 2)
     assert companion_device_id({"companion_id": "abc"}, 2) == "abc"
+
+
+def test_macropad_companion_mapping():
+    config = default_config()
+    config["device"]["profile"] = "adafruit_macropad"
+    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
+    rt, _ = make(config)
+    sat = FakeSatellite()
+    rt.satellites["default"] = sat
+    rt._device_layers = {"pad1": 1}
+    rt._on_message({"t": "key", "k": 5, "s": 1, "l": 1})    # row 1, col 2 -> index 5 in a 3-wide surface
+    rt._on_message({"t": "key", "k": 10, "s": 1, "l": 1})   # bottom row stays local
+    assert sat.presses == [("pad1", 5, True)]
+    rt._on_companion_state("pad1", 8, {"color": (9, 9, 9)})
+    assert (1, 8) in rt.companion_states
+    rt._on_companion_state("pad1", 40, {"color": (9, 9, 9)})  # outside the grid: ignored
+    assert (1, 40) not in rt.companion_states
 
 
 def test_companion_page_name_is_fetched_and_applied(monkeypatch):

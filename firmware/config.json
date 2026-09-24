@@ -1,14 +1,23 @@
 {
   "version": 1,
   "device": {
-    "hardware": "keybow2040",
+    "profile": "keybow2040",
     "brightness": 0.5,
     "hold_time_ms": 500,
     "debounce_ms": 15,
     "midi_channel": 1,
     "keyboard_layout": "us",
     "host_os": "auto",
-    "pressed_color": "#ffffff"
+    "pressed_color": "#ffffff",
+    "driver": "pmk_keybow2040",
+    "driver_config": {},
+    "num_keys": 16,
+    "led_gamma": 2.2,
+    "led_balance": [
+      1.0,
+      1.0,
+      1.0
+    ]
   },
   "layers": [
     {
@@ -502,7 +511,6 @@
       "color": "#e03030",
       "mode": "companion",
       "companion_id": "pmk-example",
-      "companion_rows": 3,
       "keys": {
         "0": {
           "label": "Next layer\n(hold: home)",

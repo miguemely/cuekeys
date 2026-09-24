@@ -40,6 +40,9 @@ def test_validation_errors(action, fragment):
 
 
 def test_companion_rows_validation_and_region():
+    from pmk_macro_manager import devices
+
+    keybow = devices.get_profile("keybow2040")
     config = cfg.default_config()
     layer = {"name": "C", "mode": "companion", "companion_rows": 5, "keys": {}}
     config["layers"].append(layer)
@@ -47,8 +50,35 @@ def test_companion_rows_validation_and_region():
     layer["companion_rows"] = 3
     assert cfg.validate(config) == []
     # key 3 = top-left, key 0 = bottom-left
-    assert cfg.in_companion_region(layer, 3) and not cfg.in_companion_region(layer, 0)
-    assert not cfg.in_companion_region({"mode": "local"}, 3)
+    assert cfg.in_companion_region(layer, 3, keybow) and not cfg.in_companion_region(layer, 0, keybow)
+    assert not cfg.in_companion_region({"mode": "local"}, 3, keybow)
+    del layer["companion_rows"]  # default: all but the bottom row
+    assert cfg.companion_rows(layer, keybow) == 3
+    macropad = devices.get_profile("adafruit_macropad")
+    assert cfg.companion_rows(layer, macropad) == 3            # 4 rows tall
+    assert cfg.companion_rows(layer, macropad, rotation=90) == 2  # 3 rows tall when rotated
+
+
+def test_key_numbers_are_checked_against_the_device():
+    config = cfg.default_config()
+    config["device"]["profile"] = "adafruit_macropad"
+    config["layers"][0]["keys"] = {"11": {"label": "ok"}, "12": {"label": "too far"}}
+    errors = cfg.validate(config)
+    assert len(errors) == 1 and "12" in errors[0] and "0-11" in errors[0]
+    config["device"]["profile"] = "nope"
+    assert any("unknown device profile" in e for e in cfg.validate(config))
+
+
+def test_legacy_hardware_is_migrated_and_firmware_gets_driver():
+    merged = cfg.merge_defaults({"device": {"hardware": "rgbkeypad"}, "layers": [{"keys": {}}]})
+    assert merged["device"]["profile"] == "rgbkeypad" and "hardware" not in merged["device"]
+    view = cfg.firmware_view(merged)
+    assert view["device"]["driver"] == "pmk_rgbkeypad" and view["device"]["num_keys"] == 16
+    assert view["device"]["led_gamma"] == 2.2                 # from the profile
+    merged["device"]["led_balance"] = [0.6, 1.0, 0.7]         # a calibrated layout wins
+    assert cfg.firmware_view(merged)["device"]["led_balance"] == [0.6, 1.0, 0.7]
+    merged["device"]["led_balance"] = [2, 1, 1]
+    assert any("led_balance" in e for e in cfg.validate(merged))
 
 
 def test_validate_bad_key_number():

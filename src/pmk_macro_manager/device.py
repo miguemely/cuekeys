@@ -7,15 +7,10 @@ import sys
 from pathlib import Path
 
 from . import config as cfg
+from . import devices
 
 DRIVE_LABEL = "CIRCUITPY"
 CONFIG_NAME = "config.json"
-
-# Libraries the firmware needs in CIRCUITPY/lib, per hardware.
-REQUIRED_LIBS = {
-    "keybow2040": ["pmk", "adafruit_hid", "adafruit_is31fl3731"],
-    "rgbkeypad": ["pmk", "adafruit_hid", "adafruit_dotstar"],
-}
 
 
 # ------------------------------------------------------------------ drives
@@ -131,7 +126,7 @@ def find_data_port():
 
 # ------------------------------------------------------------------ files
 def firmware_source():
-    """Directory holding code.py/boot.py/lib/pmkmacro (wheel or source checkout)."""
+    """Directory holding code.py/boot.py/lib (wheel or source checkout)."""
     here = Path(__file__).resolve().parent
     for candidate in (here / "firmware", here.parent.parent / "firmware"):
         if (candidate / "code.py").exists():
@@ -163,8 +158,25 @@ def read_device_config(drive=None):
         return cfg.merge_defaults(json.load(f))
 
 
-def install_firmware(drive=None, include_boot=True):
-    """Copy code.py, boot.py and lib/pmkmacro to the drive. Returns copied paths."""
+def _sync_package(src_dir, dst_dir, prune=True):
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for file in sorted(src_dir.glob("*.py")):
+        _write(dst_dir / file.name, file.read_bytes())
+        copied.append(dst_dir / file.name)
+    if prune:
+        for stale in dst_dir.glob("*.py"):
+            if not (src_dir / stale.name).exists():
+                stale.unlink()
+    return copied
+
+
+def install_firmware(drive=None, include_boot=True, profile=None):
+    """Copy code.py, boot.py, lib/pmkmacro and lib/pmkdrivers to the drive.
+
+    A plugin profile's own ``driver.py`` is installed as
+    ``lib/pmkdrivers/<driver>.py``. Returns the copied paths.
+    """
     src = firmware_source()
     dst = pick_drive(drive)
     copied = []
@@ -172,15 +184,13 @@ def install_firmware(drive=None, include_boot=True):
     for name in names:
         _write(dst / name, (src / name).read_bytes())
         copied.append(dst / name)
-    lib_src = src / "lib" / "pmkmacro"
-    lib_dst = dst / "lib" / "pmkmacro"
-    lib_dst.mkdir(parents=True, exist_ok=True)
-    for file in sorted(lib_src.glob("*.py")):
-        _write(lib_dst / file.name, file.read_bytes())
-        copied.append(lib_dst / file.name)
-    for stale in lib_dst.glob("*.py"):
-        if not (lib_src / stale.name).exists():
-            stale.unlink()
+    copied += _sync_package(src / "lib" / "pmkmacro", dst / "lib" / "pmkmacro")
+    # Don't prune drivers: plugin drivers installed earlier must survive.
+    copied += _sync_package(src / "lib" / "pmkdrivers", dst / "lib" / "pmkdrivers", prune=False)
+    if profile is not None and profile.driver_file is not None:
+        target = dst / "lib" / "pmkdrivers" / (profile.driver + ".py")
+        _write(target, profile.driver_file.read_bytes())
+        copied.append(target)
     if not (dst / CONFIG_NAME).exists():
         example = src / CONFIG_NAME
         if example.exists():
@@ -189,10 +199,27 @@ def install_firmware(drive=None, include_boot=True):
     return copied
 
 
-def missing_libraries(drive=None, hardware="keybow2040"):
+def required_libraries(profile):
+    return ["adafruit_hid"] + [lib for lib in profile.libraries if lib != "adafruit_hid"]
+
+
+def missing_libraries(drive=None, profile=None):
+    profile = profile or devices.get_profile(devices.DEFAULT_PROFILE)
     lib = pick_drive(drive) / "lib"
     missing = []
-    for name in REQUIRED_LIBS.get(hardware, REQUIRED_LIBS["keybow2040"]):
+    for name in required_libraries(profile):
         if not any((lib / n).exists() for n in (name, name + ".py", name + ".mpy")):
             missing.append(name)
     return missing
+
+
+def board_id(drive):
+    """CircuitPython board id from boot_out.txt (e.g. "pimoroni_keybow2040")."""
+    try:
+        text = (Path(drive) / "boot_out.txt").read_text(errors="replace")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith("Board ID:"):
+            return line.split(":", 1)[1].strip()
+    return None

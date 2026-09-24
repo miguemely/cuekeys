@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QColor
 
 from ..config import describe_action, in_companion_region, key_is_assigned
+from ..devices import profile_for
 
 
 class RuntimeSignals(QObject):
@@ -65,7 +66,7 @@ def cell_content(config, layer_index, key, companion_states=None):
         color = to_qcolor(key_cfg.get("color") or layer.get("color") or "#282828")
         return key_label(key_cfg), color
     rotation = int(config.get("overlay", {}).get("rotation", 0))
-    if in_companion_region(layer, key, rotation):
+    if in_companion_region(layer, key, profile_for(config), rotation):
         state = (companion_states or {}).get((layer_index, key)) or {}
         text = state.get("text", "") or companion_type_label(state)
         color = to_qcolor(state.get("color") or (0, 0, 0))
@@ -88,7 +89,7 @@ def cell_badge(config, layer_index, key, companion_states=None):
     """
     layer = config["layers"][layer_index]
     rotation = int(config.get("overlay", {}).get("rotation", 0))
-    if not in_companion_region(layer, key, rotation):
+    if not in_companion_region(layer, key, profile_for(config), rotation):
         return None
     if key_is_assigned((layer.get("keys") or {}).get(str(key))):
         return None

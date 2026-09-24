@@ -6,8 +6,9 @@ USB keyboard + USB MIDI device with layers and macros. OSC, grandMA and
 Companion actions are forwarded to the host app over the ``usb_cdc.data``
 serial port as JSON lines.
 
-Requires in /lib: pmk, adafruit_hid, and adafruit_is31fl3731 (Keybow 2040) or
-adafruit_dotstar (Pico RGB Keypad Base).
+The keypad hardware is handled by a driver in /lib/pmkdrivers, chosen by the
+layout's ``device.driver`` (see pmkdrivers/__init__.py for the interface).
+Requires /lib/adafruit_hid plus whatever the driver needs (e.g. pmk).
 """
 
 import json
@@ -21,7 +22,6 @@ from adafruit_hid.consumer_control import ConsumerControl
 from adafruit_hid.consumer_control_code import ConsumerControlCode
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keycode import Keycode
-from pmk import PMK
 from pmkmacro.engine import VERSION, Engine
 
 CONFIG_PATH = "/config.json"
@@ -35,12 +35,17 @@ def load_config():
         return {"layers": [{"name": "No config", "keys": {}}]}, str(err)
 
 
-def make_hardware(name):
-    if name == "rgbkeypad":
-        from pmk.platform.rgbkeypadbase import RGBKeypadBase as Hardware
-    else:
-        from pmk.platform.keybow2040 import Keybow2040 as Hardware
-    return Hardware()
+# Layouts written before device profiles existed only name the hardware.
+LEGACY_DRIVERS = {"keybow2040": "pmk_keybow2040", "rgbkeypad": "pmk_rgbkeypad"}
+
+
+def make_hardware(device):
+    name = device.get("driver") or LEGACY_DRIVERS.get(device.get("hardware"), "pmk_keybow2040")
+    package = __import__("pmkdrivers." + name)
+    module = getattr(package, name)
+    config = dict(device.get("driver_config") or {})
+    config.setdefault("debounce_ms", device.get("debounce_ms", 15))
+    return module.Hardware(config)
 
 
 def make_layout(name, keyboard):
@@ -86,8 +91,8 @@ class HostLink:
 
 
 class Backend:
-    def __init__(self, keypad, keyboard, layout, consumer, midi_out, link):
-        self.keypad = keypad
+    def __init__(self, hardware, keyboard, layout, consumer, midi_out, link):
+        self.hardware = hardware
         self.keyboard = keyboard
         self.layout = layout
         self.consumer_control = consumer
@@ -120,49 +125,46 @@ class Backend:
         self.link.send(message)
 
     def set_led(self, index, rgb):
-        self.keypad.keys[index].set_led(*rgb)
+        if index < self.hardware.num_keys:
+            self.hardware.set_led(index, rgb)
 
 
 def main():
     config, error = load_config()
     device = config.get("device", {})
-    keypad = PMK(make_hardware(device.get("hardware", "keybow2040")))
+    hardware = make_hardware(device)
+    if not device.get("num_keys"):
+        device["num_keys"] = hardware.num_keys
     keyboard = Keyboard(usb_hid.devices)
     midi_out = usb_midi.ports[1] if len(usb_midi.ports) > 1 else None
     link = HostLink()
-    backend = Backend(keypad, keyboard, make_layout(device.get("keyboard_layout"), keyboard),
+    backend = Backend(hardware, keyboard, make_layout(device.get("keyboard_layout"), keyboard),
                       ConsumerControl(usb_hid.devices), midi_out, link)
     engine = Engine(config, backend, lambda: time.monotonic_ns() // 1000000)
 
     if error:
         print("config error:", error)
-        for key in keypad.keys:
-            key.set_led(64, 0, 0)
+        for key in range(hardware.num_keys):
+            hardware.set_led(key, (64, 0, 0))
 
     def hello():
         link.send({"t": "hello", "fw": VERSION,
-                   "hw": device.get("hardware", "keybow2040"),
+                   "profile": device.get("profile") or device.get("hardware", "keybow2040"),
+                   "num_keys": hardware.num_keys,
                    "config_error": error})
         engine.announce_layer()
 
-    debounce_ms = int(device.get("debounce_ms", 15))
     was_connected = False
-    previous = [False] * len(keypad.keys)
-    changed_at = [0] * len(keypad.keys)
 
     while True:
-        keypad.update()
         now = time.monotonic_ns() // 1000000
-        for key in keypad.keys:
-            pressed = key.pressed
-            if pressed != previous[key.number] and now - changed_at[key.number] >= debounce_ms:
-                previous[key.number] = pressed
-                changed_at[key.number] = now
-                if pressed:
-                    engine.press(key.number)
-                else:
-                    engine.release(key.number)
+        for key, pressed in hardware.poll(now):
+            if pressed:
+                engine.press(key)
+            else:
+                engine.release(key)
         engine.tick()
+        hardware.show()
 
         connected = link.port is not None and link.port.connected
         if connected and not was_connected:
@@ -184,6 +186,11 @@ def main():
                 engine.press(int(msg.get("k", 0)))
             elif kind == "release":
                 engine.release(int(msg.get("k", 0)))
+            elif kind == "led_cal":
+                engine.set_calibration(msg.get("gamma", engine.gamma),
+                                       msg.get("balance", engine.balance))
+            elif kind == "led_test":
+                engine.set_test_color(msg.get("rgb"))
             elif kind == "reload":
                 supervisor.reload()
 

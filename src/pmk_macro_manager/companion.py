@@ -102,7 +102,7 @@ def decode_text(value):
 
 
 class SatelliteClient:
-    """Keeps one TCP connection to Companion and registers N 4x4 surfaces.
+    """Keeps one TCP connection to Companion and registers any number of surfaces.
 
     ``on_key_state(device_id, index, state)`` receives
     ``{"color", "text", "text_color", "type", "pressed"}`` (only the fields
@@ -119,7 +119,7 @@ class SatelliteClient:
         self.keys_per_row = keys_per_row
         self.retry = retry
         self.api_version = (0, 0, 0)
-        self.devices = {}          # device_id -> (product name, keys_total)
+        self.devices = {}          # device_id -> (product name, keys_total, keys_per_row)
         self.registered = {}       # device_id -> True (OK) / False (rejected, retrying)
         self.states = {}           # (device_id, index) -> state
         self._retry_at = {}        # device_id -> monotonic time to retry a rejected ADD
@@ -138,9 +138,9 @@ class SatelliteClient:
     def can_change_page(self):
         return self.api_version >= CHANGE_PAGE_API
 
-    def add_device(self, device_id, name, keys_total=16):
+    def add_device(self, device_id, name, keys_total=16, keys_per_row=None):
         known = device_id in self.devices
-        self.devices[device_id] = (name, int(keys_total))
+        self.devices[device_id] = (name, int(keys_total), int(keys_per_row or self.keys_per_row))
         if self.sock is not None and self._ready:
             if known:
                 # Companion rejects a second ADD for a live ID; re-add to change it.
@@ -196,12 +196,12 @@ class SatelliteClient:
                 return False
 
     def _register(self, device_id):
-        name, keys_total = self.devices[device_id]
+        name, keys_total, keys_per_row = self.devices[device_id]
         extra = " CAN_CHANGE_PAGE=true" if self.can_change_page else ""
         self._pending[device_id] = time.monotonic()
         self._send('ADD-DEVICE DEVICEID=%s PRODUCT_NAME="%s" KEYS_TOTAL=%d KEYS_PER_ROW=%d '
                    'BITMAPS=0 COLORS=hex TEXT=true TEXT_STYLE=true%s'
-                   % (device_id, name.replace('"', "'"), keys_total, self.keys_per_row, extra))
+                   % (device_id, name.replace('"', "'"), keys_total, keys_per_row, extra))
 
     def _close(self):
         self.registered.clear()

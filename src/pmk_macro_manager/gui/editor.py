@@ -28,9 +28,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, device
+from .. import __version__, device, devices
 from .. import config as cfg
-from ..layout import COLS, NUM_KEYS, ROWS, cell_to_key, key_to_cell
 from .actions import ActionListEditor
 from .common import cell_badge, cell_content, paint_key, text_color_for, to_qcolor
 from .overlay import OverlayWindow
@@ -108,11 +107,12 @@ class ColorButton(QPushButton):
 
 
 class KeyPad(QWidget):
-    """Custom-painted 4x4 keypad, laid out like the physical device."""
+    """Custom-painted keypad, laid out like the physical device (any grid size)."""
 
     selected = Signal(int)
     PAD = 18
     GAP = 10
+    TOP = 22  # room for the USB connector hint
 
     def __init__(self):
         super().__init__()
@@ -122,6 +122,7 @@ class KeyPad(QWidget):
         self.current = 0
         self.hover = None
         self.rotation = 0
+        self.profile = devices.get_profile(devices.DEFAULT_PROFILE)
         self.cells = {}
         self.badges = {}
         self.pressed = set()
@@ -134,29 +135,46 @@ class KeyPad(QWidget):
 
     def set_state(self, config, layer_index, companion_states, pressed=()):
         self.rotation = int(config.get("overlay", {}).get("rotation", 0))
-        self.cells = {k: cell_content(config, layer_index, k, companion_states) for k in range(NUM_KEYS)}
-        self.badges = {k: cell_badge(config, layer_index, k, companion_states) for k in range(NUM_KEYS)}
+        self.profile = devices.profile_for(config)
+        keys = self.profile.keys()
+        self.cells = {k: cell_content(config, layer_index, k, companion_states) for k in keys}
+        self.badges = {k: cell_badge(config, layer_index, k, companion_states) for k in keys}
         self.pressed = set(pressed)
         layer = config["layers"][layer_index]
-        self.region_rows = cfg.companion_rows(layer) if layer.get("mode") == "companion" else 0
+        self.region_rows = (cfg.companion_rows(layer, self.profile, self.rotation)
+                            if layer.get("mode") == "companion" else 0)
+        if self.current >= self.profile.num_keys:
+            self.current = 0
         self.update()
 
+    def _grid(self):
+        return self.profile.display_size(self.rotation)
+
+    def _tile(self):
+        rows, cols = self._grid()
+        avail_w = self.width() - 8 - 2 * self.PAD - (cols - 1) * self.GAP
+        avail_h = self.height() - self.TOP - 8 - 2 * self.PAD - (rows - 1) * self.GAP
+        return max(24.0, min(avail_w / cols, avail_h / rows, 150.0))
+
     def _chassis(self):
-        side = min(self.width() - 8, self.height() - 30)
-        x = (self.width() - side) / 2
-        return QRectF(x, 22, side, side)
+        rows, cols = self._grid()
+        tile = self._tile()
+        w = 2 * self.PAD + cols * tile + (cols - 1) * self.GAP
+        h = 2 * self.PAD + rows * tile + (rows - 1) * self.GAP
+        return QRectF((self.width() - w) / 2, self.TOP, w, h)
 
     def _cell_rect(self, row, col):
         chassis = self._chassis()
-        tile = (chassis.width() - 2 * self.PAD - (COLS - 1) * self.GAP) / COLS
+        tile = self._tile()
         return QRectF(chassis.left() + self.PAD + col * (tile + self.GAP),
                       chassis.top() + self.PAD + row * (tile + self.GAP), tile, tile)
 
     def _key_at(self, pos):
-        for row in range(ROWS):
-            for col in range(COLS):
+        rows, cols = self._grid()
+        for row in range(rows):
+            for col in range(cols):
                 if self._cell_rect(row, col).contains(pos):
-                    return cell_to_key(row, col, self.rotation)
+                    return self.profile.cell_to_key(row, col, self.rotation)
         return None
 
     def mousePressEvent(self, event):
@@ -178,29 +196,28 @@ class KeyPad(QWidget):
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
+        rows, cols = self._grid()
         chassis = self._chassis()
         p.setPen(QPen(QColor(T["border"]), 1))
         p.setBrush(QColor("#0f1115"))
         p.drawRoundedRect(chassis, 18, 18)
-        # USB connector hint (connector is at the top at rotation 0)
         p.setPen(QColor(T["muted"]))
         font = p.font()
         font.setPixelSize(10)
         p.setFont(font)
-        edge = {0: "top", 90: "right", 180: "bottom", 270: "left"}[self.rotation % 360]
-        p.drawText(QRectF(chassis.left(), 0, chassis.width(), 20), Qt.AlignCenter,
-                   "USB connector: %s" % edge)
-        tile = self._cell_rect(0, 0).width()
+        p.drawText(QRectF(chassis.left() - 60, 0, chassis.width() + 120, 20), Qt.AlignCenter,
+                   "%s  ·  USB connector: %s" % (self.profile.name, self.profile.connector_side(self.rotation)))
+        tile = self._tile()
         region = None
         if self.region_rows:
             top = self._cell_rect(0, 0)
-            bottom = self._cell_rect(self.region_rows - 1, COLS - 1)
+            bottom = self._cell_rect(self.region_rows - 1, cols - 1)
             region = QRectF(top.topLeft(), bottom.bottomRight()).adjusted(-7, -7, 7, 7)
             p.setPen(QPen(QColor(T["success"]), 1.2, Qt.DashLine))
             p.setBrush(Qt.NoBrush)
             p.drawRoundedRect(region, 12, 12)
-        for key in range(NUM_KEYS):
-            row, col = key_to_cell(key, self.rotation)
+        for key in self.profile.keys():
+            row, col = self.profile.key_to_cell(key, self.rotation)
             label, color = self.cells.get(key, ("", QColor("#000000")))
             paint_key(p, self._cell_rect(row, col), label, color, number=key,
                       selected=key == self.current, pressed=key in self.pressed,
@@ -210,9 +227,10 @@ class KeyPad(QWidget):
             # Legends sit on the left edge (in the chassis margin), after the keys so
             # nothing covers them.
             self._side_label(p, region.left(), region.center().y(), "COMPANION", T["success"])
-            if self.region_rows < ROWS:
-                pmk = self._cell_rect(ROWS - 1, 0)
-                self._side_label(p, region.left(), pmk.center().y(), "PMK", T["muted"])
+            if self.region_rows < rows:
+                last = self._cell_rect(rows - 1, 0)
+                first = self._cell_rect(self.region_rows, 0)
+                self._side_label(p, region.left(), (first.top() + last.bottom()) / 2, "PMK", T["muted"])
         p.end()
 
     @staticmethod
@@ -282,7 +300,8 @@ class MainWindow(QMainWindow):
         self.pill_companion.setObjectName("pill")
         self.pill_keypad = QLabel()
         self.pill_keypad.setObjectName("pill")
-        bar.addWidget(self.pill_companion)
+        # Widgets inside a toolbar are shown/hidden through their QAction.
+        self.pill_companion_action = bar.addWidget(self.pill_companion)
         bar.addWidget(self.pill_keypad)
 
     def _build_ui(self):
@@ -315,8 +334,6 @@ class MainWindow(QMainWindow):
         self.layer_target.setPlaceholderText("default")
         self.layer_target.textEdited.connect(self._layer_edited)
         self.layer_rows = QComboBox()
-        self.layer_rows.addItem("4×3 · bottom row stays PMK", 3)
-        self.layer_rows.addItem("4×4 · whole keypad", 4)
         self.layer_rows.currentIndexChanged.connect(self._layer_edited)
         self.layer_hint = muted("")
         props = QFormLayout()
@@ -443,6 +460,7 @@ class MainWindow(QMainWindow):
         self.act_deploy = action(m, "Deploy to keypad", self.deploy, "Ctrl+D")
         self.act_deploy.setToolTip("Write this layout to the keypad (Ctrl+D)")
         action(m, "&Load layout from keypad", self.load_from_device)
+        action(m, "LED colour balance…", self.calibrate_leds)
         m.addSeparator()
         action(m, "&Install / update firmware…", self.install_firmware)
         action(m, "Open CIRCUITPY drive", self.open_drive)
@@ -533,7 +551,9 @@ class MainWindow(QMainWindow):
         self.layer_color.set_value(layer.get("color"))
         self.layer_mode.setCurrentIndex(max(0, self.layer_mode.findData(layer.get("mode", "local"))))
         self.layer_target.setText(layer.get("companion_target", ""))
-        self.layer_rows.setCurrentIndex(max(0, self.layer_rows.findData(cfg.companion_rows(layer))))
+        self._populate_layer_rows()
+        rows = cfg.companion_rows(layer, self._profile(), self._rotation())
+        self.layer_rows.setCurrentIndex(max(0, self.layer_rows.findData(rows)))
         for w in (self.layer_name, self.layer_mode, self.layer_target, self.layer_rows):
             w.blockSignals(False)
         self._update_layer_hint()
@@ -543,15 +563,33 @@ class MainWindow(QMainWindow):
         if self.sync_action.isChecked() and self.runtime.layer != row:
             self.runtime.select_layer(row)
 
+    def _profile(self):
+        return devices.profile_for(self.config)
+
+    def _rotation(self):
+        return int(self.config.get("overlay", {}).get("rotation", 0))
+
+    def _populate_layer_rows(self):
+        """Companion surface sizes the current device allows (default first)."""
+        total, cols = self._profile().display_size(self._rotation())
+        order = ([total - 1] if total > 1 else []) + [total] + list(range(total - 2, 0, -1))
+        self.layer_rows.clear()
+        for rows in order:
+            left = total - rows
+            suffix = ("whole keypad" if left == 0 else
+                      "bottom row stays PMK" if left == 1 else "bottom %d rows stay PMK" % left)
+            self.layer_rows.addItem("%d×%d · %s" % (cols, rows, suffix), rows)
+
     def _update_layer_hint(self):
         companion = self.layer.get("mode") == "companion"
         for w in (self.layer_target, self.target_label, self.layer_rows, self.rows_label, self.layer_hint):
             w.setVisible(companion)
-        rows = cfg.companion_rows(self.layer)
+        total, cols = self._profile().display_size(self._rotation())
+        rows = cfg.companion_rows(self.layer, self._profile(), self._rotation())
         self.layer_hint.setText(
-            "Shows up in Companion → Surfaces as a 4×%d surface. Give it its own pages with the "
+            "Shows up in Companion → Surfaces as a %d×%d surface. Give it its own pages with the "
             "surface's Startup Page and Page Permissions. Empty keys in the top %d rows are "
-            "controlled by Companion%s." % (rows, rows, "; the bottom row is yours" if rows < 4 else ""))
+            "controlled by Companion%s." % (cols, rows, rows, "; the rest are yours" if rows < total else ""))
 
     def _layer_edited(self, *_args):
         layer = self.layer
@@ -576,6 +614,7 @@ class MainWindow(QMainWindow):
             item.setText(self._layer_item_text(self.layer_index, layer))
             item.setIcon(swatch_icon(layer.get("color")))
         self.runtime.set_config(self.config)
+        self._update_status()
         self._changed()
 
     def add_layer(self):
@@ -614,6 +653,7 @@ class MainWindow(QMainWindow):
 
     def _layers_changed(self):
         self.runtime.set_config(self.config)
+        self._update_status()
         self._refresh_layers()
         self._layer_selected(self.layer_index)
         self._changed()
@@ -628,7 +668,8 @@ class MainWindow(QMainWindow):
         self.key_title.setText("Key %d" % key)
         self.key_subtitle.setText("on layer “%s”" % (self.layer.get("name", "") or "Untitled"))
         rotation = int(self.config.get("overlay", {}).get("rotation", 0))
-        companion_key = cfg.in_companion_region(self.layer, key, rotation) and not cfg.key_is_assigned(key_cfg)
+        companion_key = (cfg.in_companion_region(self.layer, key, self._profile(), rotation)
+                         and not cfg.key_is_assigned(key_cfg))
         self.companion_note.setVisible(companion_key)
         self.companion_note.setText("Controlled by Companion. Add actions here to take this key over locally.")
         self.key_label.setText(key_cfg.get("label", ""))
@@ -712,9 +753,9 @@ class MainWindow(QMainWindow):
             pill_state = {"online": "ok", "busy": "warn", "offline": "bad"}[worst]
             tip = "\n".join("%s: %s" % item for item in states.items())
             self._set_pill(self.pill_companion, "● Companion", pill_state, tip)
-            self.pill_companion.show()
+            self.pill_companion_action.setVisible(True)
         else:
-            self.pill_companion.hide()
+            self.pill_companion_action.setVisible(False)
         if hasattr(self, "live_pill"):
             self.live_pill.setVisible(rt.connected and rt.layer == self.layer_index)
 
@@ -796,8 +837,13 @@ class MainWindow(QMainWindow):
             self.overlay.apply_settings()
             self.overlay.setVisible(self.config["overlay"].get("enabled", True))
             self.overlay_action.setChecked(self.config["overlay"].get("enabled", True))
-            self._render_grid()
+            # The device (grid size) may have changed: refresh layer + key panels.
+            self._layer_selected(self.layer_index)
             self._set_dirty(True)
+            problems = cfg.validate(cfg.prune(self.config))
+            if problems:
+                QMessageBox.warning(self, "Layout problems",
+                                    "Some keys don't exist on this device:\n" + "\n".join(problems[:15]))
 
     # ---------------------------------------------------------------- device
     def deploy(self):
@@ -826,6 +872,18 @@ class MainWindow(QMainWindow):
         self._replace_config(config, None)
         self._set_dirty(True)
 
+    def calibrate_leds(self):
+        from .calibration import CalibrationDialog
+
+        before = (self.config["device"].get("led_gamma"), self.config["device"].get("led_balance"))
+        if CalibrationDialog(self.config, self.runtime, self).exec():
+            after = (self.config["device"].get("led_gamma"), self.config["device"].get("led_balance"))
+            if after != before:
+                self._set_dirty(True)
+                self.statusBar().showMessage(
+                    "Colour balance saved to the layout. Deploy (Ctrl+D) to keep it after the "
+                    "keypad restarts.", 8000)
+
     def install_firmware(self):
         try:
             drive = device.pick_drive()
@@ -833,15 +891,24 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Install firmware", str(err))
             return
         info = device.board_info(drive)
+        profile = self._profile()
+        board = device.board_id(drive)
+        warning = ""
+        if board and profile.board_ids and board not in profile.board_ids:
+            others = ", ".join(p.name for p in devices.match_board(board)) or "none"
+            warning = ("\n\n⚠ This board (%s) doesn't match the layout's device, %s. Matching "
+                       "profiles: %s. Change it in Settings → Keypad first if that's wrong."
+                       % (board, profile.name, others))
         if QMessageBox.question(
                 self, "Install firmware",
-                "Copy PMK Macro Manager firmware (code.py, boot.py, lib/pmkmacro) to\n%s\n%s\n\n"
-                "Existing code.py/boot.py will be replaced." % (drive, info)) != QMessageBox.Yes:
+                "Copy PMK Macro Manager firmware for %s to\n%s\n%s\n\n"
+                "Existing code.py/boot.py will be replaced.%s" % (profile.name, drive, info, warning)
+        ) != QMessageBox.Yes:
             return
         try:
-            device.install_firmware(drive)
+            device.install_firmware(drive, profile=profile)
             device.deploy_config(self.config, drive)
-            missing = device.missing_libraries(drive, self.config["device"].get("hardware"))
+            missing = device.missing_libraries(drive, profile)
         except OSError as err:
             QMessageBox.critical(self, "Install firmware", str(err))
             return

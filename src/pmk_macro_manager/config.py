@@ -21,12 +21,11 @@ import json
 import os
 from pathlib import Path
 
+from . import devices
 from .keycodes import CONSUMER_CODES, KEYCODE_SET
-from .layout import NUM_KEYS, ROWS, key_to_cell
 
 CONFIG_VERSION = 1
 
-HARDWARE = ("keybow2040", "rgbkeypad")
 LAYER_MODES = ("local", "companion")
 LAYER_OPS = ("goto", "next", "prev", "toggle", "momentary")
 MSC_COMMANDS = ("go", "stop", "resume", "timed_go", "load", "set", "fire",
@@ -34,7 +33,6 @@ MSC_COMMANDS = ("go", "stop", "resume", "timed_go", "load", "set", "fire",
 MSC_FORMATS = ("all", "lighting", "moving_lights")
 MA_CONSOLES = ("ma3", "ma2")
 KEY_SLOTS = ("press", "release", "hold")
-COMPANION_ROWS = (3, 4)          # 4x3 surface (bottom row stays PMK) or full 4x4
 OVERLAY_OPS = ("cycle", "toggle", "show", "hide")
 DEFAULT_OVERLAY_LEVELS = [0.9, 0.6, 0.3, 0]
 CORNERS = ("bottom-right", "bottom-left", "top-right", "top-left")
@@ -216,7 +214,7 @@ def default_config():
     return {
         "version": CONFIG_VERSION,
         "device": {
-            "hardware": "keybow2040",
+            "profile": devices.DEFAULT_PROFILE,
             "brightness": 0.5,
             "hold_time_ms": 500,
             "debounce_ms": 15,
@@ -251,10 +249,15 @@ def merge_defaults(config):
     """Fill in missing top-level sections/keys without touching existing ones."""
     base = default_config()
     out = copy.deepcopy(config)
+    legacy = (out.get("device") or {}).get("hardware")
     for section in ("device", "bridge", "overlay"):
         merged = copy.deepcopy(base[section])
         merged.update(out.get(section) or {})
         out[section] = merged
+    # Layouts from before device profiles name the hardware instead.
+    if legacy and "profile" not in (config.get("device") or {}):
+        out["device"]["profile"] = devices.LEGACY_HARDWARE.get(legacy, legacy)
+    out["device"].pop("hardware", None)
     out.setdefault("version", CONFIG_VERSION)
     if not out.get("layers"):
         out["layers"] = base["layers"]
@@ -330,11 +333,23 @@ def validate(config):
     if not isinstance(config, dict):
         return ["config must be a JSON object"]
     device = config.get("device", {})
-    if device.get("hardware", "keybow2040") not in HARDWARE:
-        errors.append("device.hardware must be one of %s" % ", ".join(HARDWARE))
+    try:
+        profile = devices.get_profile(devices.profile_id(config))
+    except KeyError as err:
+        errors.append(str(err).strip("'\""))
+        profile = devices.profile_for(config)
+    rotation = int(config.get("overlay", {}).get("rotation", 0))
+    display_rows = profile.display_size(rotation)[0]
     brightness = device.get("brightness", 0.5)
     if not isinstance(brightness, (int, float)) or not 0 <= brightness <= 1:
         errors.append("device.brightness must be between 0 and 1")
+    gamma = device.get("led_gamma", 2.2)
+    if isinstance(gamma, bool) or not isinstance(gamma, (int, float)) or not 1 <= gamma <= 3:
+        errors.append("device.led_gamma must be between 1 and 3")
+    balance = device.get("led_balance", [1, 1, 1])
+    if not isinstance(balance, list) or len(balance) != 3 or not all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1 for v in balance):
+        errors.append("device.led_balance must be three numbers between 0 and 1")
     layers = config.get("layers")
     if not isinstance(layers, list) or not layers:
         return errors + ["config needs at least one layer"]
@@ -342,15 +357,18 @@ def validate(config):
         lw = "layer %d (%s)" % (li, layer.get("name", ""))
         if layer.get("mode", "local") not in LAYER_MODES:
             errors.append("%s: mode must be one of %s" % (lw, ", ".join(LAYER_MODES)))
-        if layer.get("companion_rows", 3) not in COMPANION_ROWS:
-            errors.append("%s: companion_rows must be 3 or 4" % lw)
+        rows = layer.get("companion_rows")
+        if rows is not None and (isinstance(rows, bool) or not isinstance(rows, int)
+                                 or not 1 <= rows <= display_rows):
+            errors.append("%s: companion_rows must be 1-%d for %s" % (lw, display_rows, profile.name))
         keys = layer.get("keys") or {}
         if not isinstance(keys, dict):
             errors.append("%s: keys must be an object" % lw)
             continue
         for key_id, key in keys.items():
-            if not str(key_id).isdigit() or not 0 <= int(key_id) < NUM_KEYS:
-                errors.append("%s: invalid key number %r" % (lw, key_id))
+            if not str(key_id).isdigit() or not 0 <= int(key_id) < profile.num_keys:
+                errors.append("%s: invalid key number %r (%s has keys 0-%d)"
+                              % (lw, key_id, profile.name, profile.num_keys - 1))
                 continue
             for slot in KEY_SLOTS:
                 actions = key.get(slot) or []
@@ -363,16 +381,24 @@ def validate(config):
     return errors
 
 
-def companion_rows(layer):
-    return int(layer.get("companion_rows", 3))
+def companion_rows(layer, profile, rotation=0):
+    """Rows (from the top) a Companion layer hands to Companion.
+
+    Defaults to all but the bottom row, which stays PMK's own.
+    """
+    rows = profile.display_size(rotation)[0]
+    wanted = layer.get("companion_rows")
+    if wanted is None:
+        wanted = rows - 1 if rows > 1 else rows
+    return max(1, min(int(wanted), rows))
 
 
-def in_companion_region(layer, key, rotation=0):
+def in_companion_region(layer, key, profile, rotation=0):
     """True if ``key`` sits in the part of the pad a Companion layer hands to Companion."""
-    if layer.get("mode") != "companion":
+    if layer.get("mode") != "companion" or not 0 <= key < profile.num_keys:
         return False
-    row, _col = key_to_cell(key, rotation)
-    return row < min(companion_rows(layer), ROWS)
+    row, _col = profile.key_to_cell(key, rotation)
+    return row < companion_rows(layer, profile, rotation)
 
 
 def key_is_assigned(key):
@@ -419,8 +445,17 @@ def save(config, path):
 
 def firmware_view(config):
     """The subset of a config that the keypad needs (keeps secrets off the drive)."""
+    device = dict(config.get("device", {}))
+    device.pop("hardware", None)
+    # The keypad needs the resolved driver details, not just the profile id.
+    # LED colour correction from the layout (a calibrated pad) beats the profile's.
+    for key, value in devices.profile_for(config).firmware_device().items():
+        if key.startswith("led_"):
+            device.setdefault(key, value)
+        else:
+            device[key] = value
     return {
         "version": config.get("version", CONFIG_VERSION),
-        "device": config.get("device", {}),
+        "device": device,
         "layers": config.get("layers", []),
     }

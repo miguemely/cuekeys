@@ -1,6 +1,6 @@
 # PMK Macro Manager
 
-Create, edit and manage macros on a **Pimoroni Keybow 2040** or **Pico RGB Keypad Base**, on Windows, macOS and Linux.
+Create, edit and manage macros on CircuitPython macro keypads, on Windows, macOS and Linux. Pimoroni's **Keybow 2040** is tested, the **Pico RGB Keypad Base** and **Adafruit MacroPad RP2040** are included, and any other size or board can be added as a plugin (see [Adding a keypad](docs/devices.md)).
 
 - **Macros**: key combos, typed text, delays, key down/up, media keys, all in one sequence. Keys can be tap/hold.
 - **Layers**: any number of layers, switched by goto, next/prev, toggle or momentary (held) layer keys.
@@ -8,6 +8,7 @@ Create, edit and manage macros on a **Pimoroni Keybow 2040** or **Pico RGB Keypa
 - **MIDI / MIDI Show Control**: sent straight from the keypad over USB-MIDI, so it works with no software running.
 - **OSC, grandMA2 and grandMA3**: MA3 command-line OSC (`/gma3/cmd`), MA2 Telnet commands, and any OSC message.
 - **Bitfocus Companion**: press a Companion button over HTTP, or make a whole layer a Companion *Satellite surface*. Companion then controls those keys, and its button colours and text show on the keypad LEDs and on the overlay.
+- **Any keypad**: device profiles describe each pad's key grid, LEDs and firmware driver. Generic drivers cover one-pin-per-key and diode-matrix builds with NeoPixels, so most DIY RP2040 pads need only a JSON file.
 - **GitLab CI/CD**: lint, tests on Python 3.10–3.13, a wheel, a firmware zip, desktop apps for all three OSes, and a GitLab Release.
 
 ```
@@ -42,7 +43,7 @@ pmm            # opens the editor
 3. **Unplug and replug the keypad once.** `boot.py` turns on the second USB serial port that the host app uses, and that only takes effect after a hard reset.
 4. Edit your layout and click **Keypad → Deploy layout to keypad** (Ctrl+D). The keypad reloads by itself.
 
-For the Pico RGB Keypad Base, set **Settings → Keypad → Hardware** to `rgbkeypad`.
+Pick your keypad in **Settings → Keypad → Device**, or pass `pmm init --device <id>`. `pmm profiles` lists the supported devices; `pmm devices` shows which profile matches the board that's plugged in. To add a keypad that isn't listed, see [docs/devices.md](docs/devices.md).
 
 ## Using the editor
 
@@ -121,7 +122,8 @@ pmm init --example demo.json
 pmm validate layout.json
 pmm deploy layout.json [--drive /Volumes/CIRCUITPY]
 pmm install-firmware [layout.json] [--drive …] [--no-boot]
-pmm devices                 # detected CIRCUITPY drives + serial data port
+pmm devices                 # detected CIRCUITPY drives (+ matching profile) and serial port
+pmm profiles                # supported keypad models, and your plugin folder
 ```
 
 ## Keypad ↔ host protocol
@@ -139,6 +141,7 @@ pytest            # includes the firmware engine, run on desktop Python
 ruff check .
 ```
 
+- `firmware/lib/pmkdrivers/` holds the hardware drivers. `src/pmk_macro_manager/devices/` holds the device profiles that pick them.
 - `firmware/lib/pmkmacro/` is plain Python that doesn't depend on any hardware. It runs on the keypad and in the tests, with a fake clock and a fake backend.
 - `src/pmk_macro_manager/config.py` holds the schema. The editor forms and validation are generated from `ACTION_SPECS`. A test checks that the firmware and the host support the same action types.
 - `firmware/config.json` is the starter layout. It is generated from `examples.py`, and a test keeps the two in sync.

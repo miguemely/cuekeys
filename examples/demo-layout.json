@@ -1,7 +1,7 @@
 {
   "version": 1,
   "device": {
-    "hardware": "keybow2040",
+    "profile": "keybow2040",
     "brightness": 0.5,
     "hold_time_ms": 500,
     "debounce_ms": 15,
@@ -502,7 +502,6 @@
       "color": "#e03030",
       "mode": "companion",
       "companion_id": "pmk-example",
-      "companion_rows": 3,
       "keys": {
         "0": {
           "label": "Next layer\n(hold: home)",

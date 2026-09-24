@@ -5,11 +5,12 @@ from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ..config import DEFAULT_OVERLAY_LEVELS
-from ..layout import COLS, NUM_KEYS, ROWS, cell_to_key, key_to_cell
+from ..devices import profile_for
 from .common import cell_badge, cell_content, paint_key, to_qcolor
 from .theme import T
 
 HEADER = 30
+MIN_WIDTH = 230  # room for the header on narrow pads
 PAD = 10
 GAP = 5
 
@@ -48,8 +49,11 @@ class OverlayWindow(QWidget):
         self.setWindowFlags(flags)
         self.setWindowOpacity(float(s.get("opacity", 0.8)))
         size = int(s.get("key_size", 64))
-        self.setFixedSize(PAD * 2 + COLS * size + (COLS - 1) * GAP,
-                          PAD * 2 + HEADER + ROWS * size + (ROWS - 1) * GAP)
+        rows, cols = self._grid_size()
+        grid_width = cols * size + (cols - 1) * GAP
+        self._x0 = PAD + max(0, (MIN_WIDTH - 2 * PAD - grid_width) // 2)
+        self.setFixedSize(max(MIN_WIDTH, PAD * 2 + grid_width),
+                          PAD * 2 + HEADER + rows * size + (rows - 1) * GAP)
         self.reposition()
         if visible:
             self.show()
@@ -98,16 +102,25 @@ class OverlayWindow(QWidget):
         if name in ("key", "layer", "status", "companion", "config"):
             self.update()
 
+    def _profile(self):
+        return profile_for(self.runtime.config)
+
+    def _grid_size(self):
+        return self._profile().display_size(int(self.settings.get("rotation", 0)))
+
     def _cell_rect(self, row, col):
         size = int(self.settings.get("key_size", 64))
-        return QRectF(PAD + col * (size + GAP), PAD + HEADER + row * (size + GAP), size, size)
+        x0 = getattr(self, "_x0", PAD)
+        return QRectF(x0 + col * (size + GAP), PAD + HEADER + row * (size + GAP), size, size)
 
     def _key_at(self, pos):
         rotation = int(self.settings.get("rotation", 0))
-        for row in range(ROWS):
-            for col in range(COLS):
+        rows, cols = self._grid_size()
+        profile = self._profile()
+        for row in range(rows):
+            for col in range(cols):
                 if self._cell_rect(row, col).contains(pos):
-                    return cell_to_key(row, col, rotation)
+                    return profile.cell_to_key(row, col, rotation)
         return None
 
     def mousePressEvent(self, event):
@@ -192,8 +205,9 @@ class OverlayWindow(QWidget):
             p.drawText(rest, Qt.AlignVCenter | Qt.AlignLeft,
                        p.fontMetrics().elidedText("● " + status[0], Qt.ElideRight, int(rest.width())))
 
-        for key in range(NUM_KEYS):
-            row, col = key_to_cell(key, rotation)
+        profile = self._profile()
+        for key in profile.keys():
+            row, col = profile.key_to_cell(key, rotation)
             label, color = cell_content(config, layer_index, key, runtime.companion_states)
             paint_key(p, self._cell_rect(row, col), label, color, pressed=key in self.pressed,
                       radius=7, font_px=max(9, key_size // 6), empty=T["empty_key"],

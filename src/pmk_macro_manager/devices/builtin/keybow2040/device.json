@@ -1,0 +1,19 @@
+{
+  "id": "keybow2040",
+  "name": "Pimoroni Keybow 2040",
+  "vendor": "Pimoroni",
+  "description": "4x4 mechanical keypad with per-key RGB (IS31FL3731).",
+  "board_ids": ["pimoroni_keybow2040"],
+  "grid": [
+    [3, 7, 11, 15],
+    [2, 6, 10, 14],
+    [1, 5, 9, 13],
+    [0, 4, 8, 12]
+  ],
+  "leds": "rgb",
+  "connector": "top",
+  "driver": "pmk_keybow2040",
+  "driver_config": {},
+  "libraries": ["pmk", "adafruit_is31fl3731"],
+  "tested": true
+}

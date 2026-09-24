@@ -1,0 +1,22 @@
+{
+  "id": "diy_rp2040_3x3",
+  "name": "DIY RP2040-Zero 3x3",
+  "vendor": "Example",
+  "description": "Nine switches wired straight to GP0-GP8 (other leg to GND), WS2812 chain on GP16.",
+  "board_ids": ["waveshare_rp2040_zero"],
+  "grid": [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8]
+  ],
+  "leds": "rgb",
+  "connector": "top",
+  "driver": "keypad_keys",
+  "driver_config": {
+    "pins": ["GP0", "GP1", "GP2", "GP3", "GP4", "GP5", "GP6", "GP7", "GP8"],
+    "value_when_pressed": false,
+    "pull": true,
+    "pixels": {"pin": "GP16", "count": 9, "order": "GRB"}
+  },
+  "libraries": ["neopixel"]
+}

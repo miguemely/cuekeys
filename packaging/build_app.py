@@ -28,6 +28,8 @@ def main():
         "--name", NAME,
         # PyInstaller >= 6 accepts ':' as the separator on every platform.
         "--add-data", "%s:pmk_macro_manager/firmware" % (ROOT / "firmware"),
+        "--add-data", "%s:pmk_macro_manager/devices/builtin"
+        % (ROOT / "src" / "pmk_macro_manager" / "devices" / "builtin"),
         "--collect-submodules", "pmk_macro_manager",
         "--osx-bundle-identifier", "io.gitlab.pmk-macro-manager",
         str(ROOT / "packaging" / "launcher.py"),

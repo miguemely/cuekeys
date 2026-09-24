@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Build a drag-and-drop firmware zip for the CIRCUITPY drive.
 
-The zip contains code.py, boot.py, config.json, lib/pmkmacro and the third-party
-libraries the firmware needs:
+The zip contains code.py, boot.py, config.json, lib/pmkmacro, lib/pmkdrivers and
+the third-party libraries the built-in device drivers need:
 
 * pmk                      (pimoroni/pmk-circuitpython)
 * adafruit_hid             (Adafruit bundle)
 * adafruit_is31fl3731      (Keybow 2040 LEDs)
 * adafruit_dotstar + adafruit_pixelbuf (Pico RGB Keypad LEDs)
 * adafruit_bus_device      (dependency of the LED drivers)
+* neopixel                 (generic keypad_keys / keypad_matrix drivers)
 
 The Adafruit "py" bundle is used so the zip works on any CircuitPython version.
 
@@ -31,7 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ADAFRUIT_RELEASES = "https://api.github.com/repos/adafruit/Adafruit_CircuitPython_Bundle/releases/latest"
 PMK_ARCHIVE = "https://codeload.github.com/pimoroni/pmk-circuitpython/zip/{ref}"
 ADAFRUIT_LIBS = ["adafruit_hid", "adafruit_is31fl3731", "adafruit_dotstar", "adafruit_pixelbuf",
-                 "adafruit_bus_device"]
+                 "adafruit_bus_device", "neopixel"]
 
 
 def fetch(url):
@@ -98,8 +99,9 @@ def main():
         fw = ROOT / "firmware"
         for name in ("code.py", "boot.py", "config.json"):
             shutil.copy(fw / name, stage / name)
-        shutil.copytree(fw / "lib" / "pmkmacro", lib / "pmkmacro",
-                        ignore=shutil.ignore_patterns("__pycache__"))
+        for package in ("pmkmacro", "pmkdrivers"):
+            shutil.copytree(fw / "lib" / package, lib / package,
+                            ignore=shutil.ignore_patterns("__pycache__"))
 
         extract_libs(adafruit_bundle(args.adafruit_bundle), ADAFRUIT_LIBS, lib,
                      r"adafruit-circuitpython-bundle-py-\d+/lib/")

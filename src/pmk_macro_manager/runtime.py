@@ -24,7 +24,7 @@ import threading
 from . import companion as comp
 from . import grandma
 from .config import companion_rows, in_companion_region, key_is_assigned
-from .layout import key_from_satellite, satellite_index
+from .devices import profile_for
 from .link import DeviceLink
 from .osc import OscSender
 
@@ -165,12 +165,13 @@ class Runtime:
         if not 0 <= layer_index < len(layers):
             return
         layer = layers[layer_index]
-        if in_companion_region(layer, key, self._rotation()) and not key_is_assigned(
+        profile = self._profile()
+        if in_companion_region(layer, key, profile, self._rotation()) and not key_is_assigned(
                 (layer.get("keys") or {}).get(str(key))):
             sat = self.satellites.get(layer.get("companion_target", "default"))
             if sat is not None:
                 sat.key_press(companion_device_id(layer, layer_index),
-                              satellite_index(key, self._rotation()), pressed)
+                              profile.satellite_index(key, self._rotation()), pressed)
 
     def change_companion_page(self, layer_index, forward=True):
         layers = self.config["layers"]
@@ -186,6 +187,9 @@ class Runtime:
                       message="Page change needs Companion 4.3 or newer (Satellite API 1.10)")
 
     # ------------------------------------------------------------ outputs
+    def _profile(self):
+        return profile_for(self.config)
+
     def _rotation(self):
         return int(self.config.get("overlay", {}).get("rotation", 0))
 
@@ -246,6 +250,8 @@ class Runtime:
         """Start/stop Satellite connections to match the companion layers."""
         wanted = {}
         self._device_layers = {}
+        profile, rotation = self._profile(), self._rotation()
+        width = profile.display_size(rotation)[1]
         for index, layer in enumerate(self.config["layers"]):
             if layer.get("mode") != "companion":
                 continue
@@ -253,7 +259,8 @@ class Runtime:
             device_id = companion_device_id(layer, index)
             self._device_layers[device_id] = index
             name = "PMK %s" % (layer.get("name") or "layer %d" % index)
-            wanted.setdefault(target, {})[device_id] = (name, companion_rows(layer) * 4)
+            rows = companion_rows(layer, profile, rotation)
+            wanted.setdefault(target, {})[device_id] = (name, rows * width, width)
         targets = self._bridge("companion")
         for target in list(self.satellites):
             sat = self.satellites[target]
@@ -274,8 +281,8 @@ class Runtime:
                     on_key_state=self._on_companion_state,
                     on_status=lambda c, t=target: self._on_companion_status(t, c))
                 self.satellites[target] = sat
-                for device_id, (name, keys) in devices.items():
-                    sat.add_device(device_id, name, keys)
+                for device_id, spec in devices.items():
+                    sat.add_device(device_id, *spec)
                 sat.start()
             else:
                 for device_id in list(sat.devices):
@@ -328,9 +335,11 @@ class Runtime:
 
     def _on_companion_state(self, device_id, index, state):
         layer = self._device_layers.get(device_id)
-        if layer is None or not 0 <= index < 16:
+        if layer is None or index < 0:
             return
-        key = key_from_satellite(index, self._rotation())
+        key = self._profile().key_from_satellite(index, self._rotation())
+        if key is None:
+            return
         page = state.get("page")
         if page is not None:
             target = self._layer_target(layer)

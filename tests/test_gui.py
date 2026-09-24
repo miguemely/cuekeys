@@ -117,3 +117,26 @@ def test_companion_location_badge_rules():
     assert cell_badge(config, 1, 0, states) is None       # bottom row is PMK's
     label, color = cell_content(config, 1, 3, states)
     assert label == "Go" and color.name() != "#000000"   # drawn as a real button
+
+
+def test_led_calibration_dialog(window):
+    from PySide6.QtWidgets import QDialog
+
+    from pmk_macro_manager.gui.calibration import CalibrationDialog
+
+    link = FakeLink(connected=True)
+    window.runtime.link = link
+    dialog = CalibrationDialog(window.config, window.runtime)
+    assert {"t": "led_test", "rgb": "#ffffff"} in link.sent          # white pattern shown at once
+    dialog.channels[0].set_value(60)
+    assert link.sent[-2] == {"t": "led_cal", "gamma": 2.2, "balance": [0.6, 1.0, 1.0]}
+    dialog.done(QDialog.Accepted)
+    assert window.config["device"]["led_balance"] == [0.6, 1.0, 1.0]
+    assert link.sent[-1] == {"t": "led_test", "rgb": None}           # back to the layout
+
+    link.sent.clear()
+    dialog = CalibrationDialog(window.config, window.runtime)
+    dialog.channels[2].set_value(10)
+    dialog.done(QDialog.Rejected)                                     # cancel restores saved values
+    assert link.sent[-1] == {"t": "led_cal", "gamma": 2.2, "balance": [0.6, 1.0, 1.0]}
+    assert window.config["device"]["led_balance"] == [0.6, 1.0, 1.0]

@@ -6,7 +6,7 @@ import logging
 import sys
 import time
 
-from . import __version__, device
+from . import __version__, device, devices
 from . import config as cfg
 
 
@@ -73,14 +73,15 @@ def cmd_deploy(args):
 
 
 def cmd_install(args):
-    copied = device.install_firmware(args.drive, include_boot=not args.no_boot)
+    config = _load(args.config) if args.config else None
+    profile = devices.profile_for(config) if config else _detect_profile(args.drive)
+    print("device profile: %s (%s)" % (profile.id, profile.name))
+    copied = device.install_firmware(args.drive, include_boot=not args.no_boot, profile=profile)
     for path in copied:
         print("copied %s" % path)
-    hardware = "keybow2040"
-    if args.config:
-        hardware = _load(args.config)["device"].get("hardware", hardware)
-        print("wrote %s" % device.deploy_config(_load(args.config), args.drive))
-    missing = device.missing_libraries(args.drive, hardware)
+    if config:
+        print("wrote %s" % device.deploy_config(config, args.drive))
+    missing = device.missing_libraries(args.drive, profile)
     if missing:
         print("missing libraries in lib/: %s (see README, 'Firmware bundle')" % ", ".join(missing))
     if not args.no_boot:
@@ -88,20 +89,51 @@ def cmd_install(args):
     return 0
 
 
+def _detect_profile(drive):
+    board = device.board_id(device.pick_drive(drive))
+    matches = devices.match_board(board)
+    if len(matches) == 1:
+        return matches[0]
+    if matches:
+        print("board %s matches several profiles (%s); using %s. Pass a layout to choose."
+              % (board, ", ".join(p.id for p in matches), matches[0].id))
+        return matches[0]
+    print("no device profile for board %r; using %s" % (board, devices.DEFAULT_PROFILE))
+    return devices.get_profile(devices.DEFAULT_PROFILE)
+
+
 def cmd_devices(_args):
     drives = device.find_drives()
     for drive in drives:
-        print("drive  %s  %s" % (drive, device.board_info(drive)))
+        board = device.board_id(drive)
+        matches = ", ".join(p.id for p in devices.match_board(board)) or "no matching profile"
+        print("drive  %s  %s  [%s]" % (drive, device.board_info(drive), matches))
     if not drives:
         print("drive  (none found)")
     print("serial %s" % (device.find_data_port() or "(no data port found)"))
     return 0
 
 
+def cmd_profiles(args):
+    for profile in sorted(devices.all_profiles().values(), key=lambda p: p.id):
+        tested = "" if profile.tested else "  (untested)"
+        print("%-20s %-36s %dx%d, %d keys, driver %s%s" % (
+            profile.id, profile.name, profile.cols, profile.rows, profile.num_keys, profile.driver, tested))
+        if args.verbose:
+            print("%20s %s" % ("", profile.source))
+    for error in devices.load_errors():
+        print("error: %s" % error)
+    print("\nplugin folder: %s" % devices.user_device_dir())
+    return 0
+
+
 def cmd_init(args):
     from .examples import example_config
 
-    config = example_config() if args.example else cfg.default_config()
+    profile_id = args.device or devices.DEFAULT_PROFILE
+    devices.get_profile(profile_id)  # fail early on unknown ids
+    config = example_config(profile_id) if args.example else cfg.default_config()
+    config["device"]["profile"] = profile_id
     cfg.save(config, args.output)
     print("wrote %s" % args.output)
     return 0
@@ -136,9 +168,11 @@ def build_parser():
     sp.add_argument("--drive")
     sp.add_argument("--no-boot", action="store_true", help="leave boot.py alone")
     add("devices", cmd_devices, "list detected keypads", config=False)
+    add("profiles", cmd_profiles, "list supported keypad models (device profiles)", config=False)
     sp = add("init", cmd_init, "create a new layout file", config=False)
     sp.add_argument("output", nargs="?", default="layout.json")
     sp.add_argument("--example", action="store_true", help="include a demo layout")
+    sp.add_argument("--device", help="device profile id (see 'pmm profiles')")
     return p
 
 
@@ -150,6 +184,6 @@ def main(argv=None):
         args = build_parser().parse_args(["gui"] + list(argv or sys.argv[1:]))
     try:
         return args.func(args) or 0
-    except (OSError, RuntimeError) as err:
-        print("error: %s" % err, file=sys.stderr)
+    except (OSError, RuntimeError, KeyError) as err:
+        print("error: %s" % str(err).strip("'\""), file=sys.stderr)
         return 2

@@ -33,7 +33,7 @@ the next one and release/undo steps always run after the matching press steps.
 from . import midi as _midi
 
 VERSION = "0.1.0"
-NUM_KEYS = 16
+NUM_KEYS = 16  # default; the layout's device section sets the real count
 
 ACTION_TYPES = (
     "keys", "key_down", "key_up", "release_all", "text", "delay", "consumer",
@@ -72,7 +72,25 @@ def parse_color(value, default=(0, 0, 0)):
         return default
 
 
+DEFAULT_GAMMA = 2.2
+
+
+def color_lut(brightness, gamma=DEFAULT_GAMMA, gain=1.0):
+    """256-entry table: linear 0-255 input -> corrected LED drive level.
+
+    Gamma makes mid-tones look right on linear PWM LEDs; ``gain`` is the
+    per-channel white balance (LED dies aren't equally bright).
+    """
+    lut = bytearray(256)
+    factor = 255.0 * brightness * gain
+    for i in range(256):
+        value = int(((i / 255.0) ** gamma) * factor + 0.5)
+        lut[i] = 255 if value > 255 else value
+    return lut
+
+
 def scale(rgb, brightness):
+    """Plain brightness scaling (no gamma / balance)."""
     return (int(rgb[0] * brightness), int(rgb[1] * brightness),
             int(rgb[2] * brightness))
 
@@ -94,9 +112,13 @@ class Engine:
     # ------------------------------------------------------------------ config
     def load(self, config):
         device = config.get("device", {}) if config else {}
+        self.num_keys = int(device.get("num_keys", NUM_KEYS))
         self.layers = (config or {}).get("layers") or [{"name": "Default", "keys": {}}]
         self.hold_time = int(device.get("hold_time_ms", 500))
         self.brightness = float(device.get("brightness", 0.5))
+        self.test_color = None
+        self.set_calibration(device.get("led_gamma", DEFAULT_GAMMA),
+                             device.get("led_balance", (1.0, 1.0, 1.0)), render=False)
         self.pressed_color = parse_color(device.get("pressed_color"), (255, 255, 255))
         self.midi_channel = int(device.get("midi_channel", 1))
         os_hint = device.get("host_os", "auto")
@@ -351,11 +373,29 @@ class Engine:
         layer_color = parse_color(self.layers[self.layer].get("color"), (40, 40, 40))
         return parse_color(cfg.get("color"), layer_color)
 
+    def set_calibration(self, gamma=DEFAULT_GAMMA, balance=(1.0, 1.0, 1.0), render=True):
+        """LED colour correction; the host's calibration dialog calls this live."""
+        self.gamma = float(gamma)
+        self.balance = tuple(float(b) for b in balance)
+        self.luts = [color_lut(self.brightness, self.gamma, gain) for gain in self.balance]
+        if render:
+            self.render()
+
+    def set_test_color(self, rgb=None):
+        """Show one colour on every key (calibration), or None to go back."""
+        self.test_color = parse_color(rgb) if rgb is not None else None
+        self.render()
+
+    def corrected(self, rgb):
+        luts = self.luts
+        return (luts[0][rgb[0]], luts[1][rgb[1]], luts[2][rgb[2]])
+
     def render_key(self, index):
-        self.backend.set_led(index, scale(self.key_color(index), self.brightness))
+        color = self.test_color if self.test_color is not None else self.key_color(index)
+        self.backend.set_led(index, self.corrected(color))
 
     def render(self):
-        for index in range(NUM_KEYS):
+        for index in range(self.num_keys):
             self.render_key(index)
 
 

@@ -20,11 +20,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..config import CORNERS, HARDWARE
+from .. import devices
+from ..config import CORNERS
 
 # (section path, key, kind, extra)
 DEVICE_FIELDS = [
-    ("hardware", "Hardware", "choice", HARDWARE),
+    ("profile", "Device", "profile", None),
     ("brightness", "LED brightness", "float", (0.0, 1.0)),
     ("hold_time_ms", "Hold time (ms)", "int", (50, 5000)),
     ("debounce_ms", "Debounce (ms)", "int", (0, 200)),
@@ -62,7 +63,14 @@ class _Section:
         self.widgets = {}
         for key, label, kind, extra in fields:
             value = data.get(key)
-            if kind == "choice":
+            if kind == "profile":
+                w = QComboBox()
+                for profile in sorted(devices.all_profiles().values(), key=lambda p: p.name):
+                    label = "%s  (%d×%d%s)" % (profile.name, profile.cols, profile.rows,
+                                              "" if profile.tested else ", untested")
+                    w.addItem(label, profile.id)
+                w.setCurrentIndex(max(0, w.findData(value or devices.DEFAULT_PROFILE)))
+            elif kind == "choice":
                 w = QComboBox()
                 w.addItems([str(c) for c in extra])
                 w.setCurrentText(str(value))
@@ -89,7 +97,10 @@ class _Section:
 
     def apply(self):
         for key, (kind, w) in self.widgets.items():
-            if kind == "choice":
+            if kind == "profile":
+                self.data[key] = w.currentData()
+                self.data.pop("hardware", None)
+            elif kind == "choice":
                 text = w.currentText()
                 self.data[key] = int(text) if text.isdigit() else text
             elif kind == "bool":
@@ -124,7 +135,9 @@ class SettingsDialog(QDialog):
             return form
 
         page("Keypad", [(cfg.setdefault("device", {}), DEVICE_FIELDS)],
-             "Stored in config.json on the keypad. Changing hardware needs a redeploy.")
+             "Stored in config.json on the keypad. After changing the device, use Keypad → "
+             "Install / update firmware. More devices: add a profile folder to %s "
+             "(see docs/devices.md)." % devices.user_device_dir())
         page("Overlay", [(cfg.setdefault("overlay", {}), OVERLAY_FIELDS)])
         page("grandMA", [(bridge.setdefault("ma3", {}), MA3_FIELDS),
                          (bridge.setdefault("ma2", {}), MA2_FIELDS)],

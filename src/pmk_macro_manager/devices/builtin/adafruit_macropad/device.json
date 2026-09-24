@@ -1,0 +1,24 @@
+{
+  "id": "adafruit_macropad",
+  "name": "Adafruit MacroPad RP2040",
+  "vendor": "Adafruit",
+  "description": "3x4 keys with NeoPixels. The rotary encoder and OLED are not used yet.",
+  "board_ids": ["adafruit_macropad_rp2040"],
+  "grid": [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [9, 10, 11]
+  ],
+  "leds": "rgb",
+  "connector": "top",
+  "driver": "keypad_keys",
+  "driver_config": {
+    "pins": ["KEY1", "KEY2", "KEY3", "KEY4", "KEY5", "KEY6",
+             "KEY7", "KEY8", "KEY9", "KEY10", "KEY11", "KEY12"],
+    "value_when_pressed": false,
+    "pull": true,
+    "pixels": {"pin": "NEOPIXEL", "count": 12, "order": "GRB"}
+  },
+  "libraries": ["neopixel"]
+}

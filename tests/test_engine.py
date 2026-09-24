@@ -206,7 +206,7 @@ def test_leds_and_companion_layer():
                                       "1": {"color": "#ff0000", "press": []}}},
         {"mode": "companion", "keys": {}},
     ]
-    engine, backend, clock = make(layers, {"brightness": 1.0, "pressed_color": "#00ff00"})
+    engine, backend, clock = make(layers, {"brightness": 1.0, "pressed_color": "#00ff00", "led_gamma": 1.0})
     assert backend.leds[0] == (0x10, 0x20, 0x30)
     assert backend.leds[1] == (255, 0, 0)
     assert backend.leds[2] == (0, 0, 0)
@@ -217,6 +217,24 @@ def test_leds_and_companion_layer():
     assert backend.leds[5] == (0, 0, 0)  # not the current layer yet
     engine.set_layer(1)
     assert backend.leds[5] == (1, 2, 3)
+
+
+def test_led_gamma_balance_and_test_pattern():
+    from pmkmacro.engine import color_lut
+
+    layers = [{"keys": {"0": {"color": "#ffffff", "press": [{"type": "text", "text": "x"}]},
+                        "1": {"color": "#80ff40", "press": [{"type": "text", "text": "x"}]}}}]
+    engine, backend, clock = make(layers, {"brightness": 1.0, "led_balance": [0.5, 1.0, 0.8]})
+    assert backend.leds[0] == (128, 255, 204)            # white balanced
+    r, g, b = backend.leds[1]
+    assert (r, g, b) == (28, 255, 10)                     # gamma + balance: mid-tones stay saturated
+    engine.set_calibration(1.0, (1, 1, 1))
+    assert backend.leds[1] == (128, 255, 64)              # linear again, re-rendered live
+    engine.set_test_color("#ffffff")
+    assert all(backend.leds[k] == (255, 255, 255) for k in range(16))
+    engine.set_test_color(None)
+    assert backend.leds[2] == (0, 0, 0)
+    assert color_lut(0.5)[255] == 128 and color_lut(1.0)[0] == 0
 
 
 def test_action_types_match_host_schema():

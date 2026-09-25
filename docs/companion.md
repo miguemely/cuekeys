@@ -90,6 +90,11 @@ one Satellite connection (`Hub.sync_satellites`).
    The keypad's `companion_page` keys (◀ Page / Page ▶) then cycle through only those pages.
 3. Several Companion layers means several independent surfaces, and each can have its own pages.
 
+<p align="center">
+  <img src="images/settings-companion.png" alt="Settings, OSC and Companion tab with the default Companion server" width="420">
+  <img src="images/editor-companion.png" alt="A Companion layer in the editor with Companion's buttons in the top three rows" width="420">
+</p>
+
 ## Testing without Companion
 
 `tests/test_companion.py` runs the client against a local fake TCP server and a local

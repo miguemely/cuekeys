@@ -5,6 +5,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Screenshots** of the editor, overlays, settings and LED calibration in the README and docs
+  (`docs/images/`). `scripts/screenshots.py` renders them offscreen from the demo layout with fake
+  keypads and Companion data, so they can be regenerated after UI changes.
+
+### Fixed
+- The LED colour balance dialog could squash its intro text over the sliders.
+- The key colour menu's "Key N colour" heading didn't show (the theme draws section titles as a line).
+- The Companion surface size options were cut off in the layer panel; they're shorter now
+  (`4×3 + 1 local row`), with the full description as a tooltip.
+
 ## [0.1.0] - 2026-09-25
 
 First release.

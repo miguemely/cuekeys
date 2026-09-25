@@ -117,7 +117,10 @@ class CalibrationDialog(QDialog):
         layout.addWidget(reset, 0, Qt.AlignLeft)
         layout.addWidget(self.status)
         layout.addWidget(box)
-        self.resize(460, 0)
+        # A word-wrapped label only gets its full height if the dialog can't shrink below its
+        # layout's minimum; otherwise the intro text overlaps the sliders.
+        self.setMinimumWidth(480)
+        layout.setSizeConstraint(QVBoxLayout.SetMinimumSize)
         self._push()
 
     def values(self):

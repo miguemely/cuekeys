@@ -11,6 +11,11 @@ Create, edit and manage macros on CircuitPython macro keypads, on Windows, macOS
 - **Any keypad**: device profiles describe each pad's key grid, LEDs and firmware driver. Generic drivers cover one-pin-per-key and diode-matrix builds with NeoPixels, so most DIY RP2040 pads need only a JSON file.
 - **CI/CD on GitHub Actions and GitLab CI**: lint, tests on Python 3.10–3.13 (plus macOS and Windows), a wheel, a firmware zip, desktop apps for all three OSes, and releases.
 
+<p align="center">
+  <img src="docs/images/editor.png" alt="The CueKeys editor: layers on the left, the keypad in the middle, the selected key's label, colour and macro on the right" width="640">
+  <img src="docs/images/overlay.png" alt="The on-screen overlay in the corner of the desktop, showing the current layer's keys" width="235">
+</p>
+
 ```
  ┌──────────── keypad (CircuitPython) ────────────┐         ┌──────────── host app (Python / Qt) ─────────────┐
  │ code.py + lib/cuekeys_engine (layers, macro engine)  │  USB    │ editor ─ overlay ─ runtime                       │
@@ -72,11 +77,19 @@ Pick your keypad in **Settings → Keypad → Device**, or pass `cuekeys init --
 - Actions that have a natural "off" undo themselves on release: held key combos, MIDI notes in `momentary` mode, momentary layers, and OSC `release_args` / MA `release_command`.
 - `PRIMARY` is a cross-platform modifier. It sends Cmd on macOS and Ctrl on Windows and Linux. The host app tells the keypad which OS it is plugged into. Set `host_os` if the keypad runs without the app.
 
+<p align="center"><img src="docs/images/editor-key-colours.png" alt="Right-clicking a key in the editor opens a colour menu with presets, a custom colour, and copy, paste and clear" width="640"></p>
+
 Layouts are plain JSON. Save them anywhere, keep them in git, and share them. Only the `device` and `layers` sections go onto the keypad, so network settings and passwords stay on the computer.
+
+**LED colour balance** (**Keypad → LED colour balance…**): if white looks pink or green on your keypad, or colours look washed out, adjust the red/green/blue gain and gamma against a live test pattern on the keypad. The values are saved for that keypad and applied on the next deploy.
+
+<p align="center"><img src="docs/images/led-calibration.png" alt="The LED colour balance dialog: red, green and blue gain, gamma, and test patterns shown on the keypad" width="360"></p>
 
 ### Overlay
 
 The overlay shows the current layer (`2/4 grandMA3`), each key's label and colour, held keys, and whether the keypad and Companion are connected. Change it in **Settings → Overlay**: opacity, corner, size, rotation, and click-through. When click-through is off, you can click keys to trigger them, scroll to change layer, and right-click for the next layer.
+
+<p align="center"><img src="docs/images/settings-overlay.png" alt="Settings, Overlay tab: opacity, corner, margin, key size, click-through, all desktops and full-screen apps, displays, rotation" width="420"></p>
 
 Run only the overlay and bridge, for example on a show machine, with `cuekeys overlay layout.json`. It puts an icon in the system tray.
 
@@ -120,9 +133,14 @@ On MA3 `ma` keys, `release_command` works as a flash (for example `Go+ Executor 
 Add a server under **Settings → OSC & Companion**, e.g. `{"default": {"host": "10.0.0.5", "http_port": 8000, "satellite_port": 16622}}`.
 
 - **Companion button action**: presses `page/row/column` through Companion's HTTP remote API. In `hold` mode it sends down on press and up on release.
-- **Companion layer** (layer mode `companion`): the host registers that layer with Companion as a **Satellite** surface (TCP 16622). The default size is **4×3**: the top three rows belong to Companion, and the **bottom row stays local**. Choose *4×4 · whole keypad* in the layer settings if you want Companion to have all 16 keys. In the Companion region, unassigned keys go to Companion. Companion's button colour drives the key LED, and its text becomes the overlay label. Keys you assign locally still override Companion. Each Companion layer is a separate surface with a stable ID (`companion_id`).
+- **Companion layer** (layer mode `companion`): the host registers that layer with Companion as a **Satellite** surface (TCP 16622). The default size is **4×3**: the top three rows belong to Companion, and the **bottom row stays local**. Choose *4×4 whole pad* in the layer settings if you want Companion to have all 16 keys. In the Companion region, unassigned keys go to Companion. Companion's button colour drives the key LED, and its text becomes the overlay label. Keys you assign locally still override Companion. Each Companion layer is a separate surface with a stable ID (`companion_id`).
   - **Give the surface its own pages:** in Companion → Surfaces → your CueKeys surface, set *Startup Page* and turn on *Restrict pages accessible to this surface*. Companion's grid must be at least 4×3; use *Resize grid to fit* if Companion offers it.
   - **Bottom-row keys** in the demo layout: layer switch, `◀ Page` / `Page ▶` (`companion_page`, which pages through the allowed pages), and `Overlay opacity` (`overlay` cycle: 90 % → 60 % → 30 % → hidden). Page keys need Companion 4.3+ (Satellite API 1.10). The overlay header shows the surface's current page (`Companion p.4`).
+
+<p align="center">
+  <img src="docs/images/editor-companion.png" alt="A Companion layer in the editor: the top three rows show Companion's buttons with their page/row/column, the bottom row holds local keys" width="560">
+  <img src="docs/images/overlay-companion.png" alt="The overlay on a Companion layer, with Companion's button colours, text and locations and the current page name" width="235">
+</p>
 
 The Satellite connection comes from the host app, so a Companion layer needs the app (or `cuekeys overlay` / `cuekeys bridge`) running.
 
@@ -155,8 +173,10 @@ id, which is also its USB serial number).
 - **Overlay:** one per keypad, stacked in the corner and labelled with the keypad's name.
 - **Companion:** every Companion layer of every keypad is its own surface, `ck-<keypad>-<layer>`
   (for example `ck-e35b8c2b-example`), so the same layout on two keypads can show different pages.
-- **Per keypad, not per layout:** its name, its layout file, and its LED calibration, stored in
+- **Per keypad, not per layout:** its name, its layout file, and its LED calibration (**Keypad → LED colour balance…**), stored in
   `keypads.json` in the CueKeys config folder. Rename a keypad under **Keypad → Rename keypad…**.
+
+<p align="center"><img src="docs/images/overlays-two-keypads.png" alt="Two overlays stacked in the screen corner, one per keypad, each headed with the keypad's name" width="300"></p>
 
 `--port` on `gui`, `overlay` and `bridge` limits CueKeys to the keypad on that port.
 

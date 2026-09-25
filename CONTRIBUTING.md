@@ -47,7 +47,15 @@ editor, overlay and all tests run without one.
 
 ### Visual checks
 
-Tests can't judge looks. For UI changes, render offscreen and look at the image:
+Tests can't judge looks. The screenshots in `docs/images/` (README and docs) are rendered offscreen
+from the demo layout with fake keypads and Companion data. Regenerate them after UI changes and
+commit the PNGs; look at them before you do:
+
+```bash
+.venv/bin/python scripts/screenshots.py        # -> docs/images/*.png (2x, for high-DPI screens)
+```
+
+For a quick one-off look at something else, render it offscreen yourself:
 
 ```python
 # QT_QPA_PLATFORM=offscreen .venv/bin/python shot.py

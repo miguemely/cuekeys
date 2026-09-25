@@ -684,9 +684,13 @@ class MainWindow(QMainWindow):
         self.layer_rows.clear()
         for rows in order:
             left = total - rows
-            suffix = ("whole keypad" if left == 0 else
-                      "bottom row stays local" if left == 1 else "bottom %d rows stay local" % left)
-            self.layer_rows.addItem("%d×%d · %s" % (cols, rows, suffix), rows)
+            # Short: the layer panel is narrow. The tooltip says it in full.
+            short = "whole pad" if left == 0 else "+ %d local row%s" % (left, "" if left == 1 else "s")
+            full = ("whole keypad" if left == 0 else
+                    "bottom row stays local" if left == 1 else "bottom %d rows stay local" % left)
+            self.layer_rows.addItem("%d×%d %s" % (cols, rows, short), rows)
+            self.layer_rows.setItemData(self.layer_rows.count() - 1, "%d×%d surface, %s" % (cols, rows, full),
+                                        Qt.ToolTipRole)
 
     def _update_layer_hint(self):
         companion = self.layer.get("mode") == "companion"
@@ -811,7 +815,9 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QMenu
 
         menu = QMenu(self)
-        menu.addSection("Key %d colour" % key)
+        title = menu.addAction("Key %d colour" % key)       # styles draw addSection() as a bare line
+        title.setEnabled(False)
+        menu.addSeparator()
         for name, value in PRESET_COLORS:
             menu.addAction(swatch_icon(value), name, lambda v=value: self.key_color.choose(v))
         menu.addAction("Custom colour…", self.key_color.button._pick)

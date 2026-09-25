@@ -26,6 +26,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # setup
 .venv/bin/cuekeys profiles | devices | validate FILE | deploy FILE # CLI
 python scripts/build_firmware_bundle.py --out dist             # drag-and-drop firmware zip (+ its SBOM)
 python scripts/sbom.py --app --out dist/app.cdx.json            # CycloneDX SBOM of the app (build_app.py runs this)
+python scripts/screenshots.py                                   # docs/images/*.png; re-run after UI changes
 ```
 
 Tests use Qt's offscreen platform (`tests/conftest.py` sets `QT_QPA_PLATFORM=offscreen`) and bind

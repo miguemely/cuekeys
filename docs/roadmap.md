@@ -10,7 +10,7 @@ Code exists for these but hasn't been checked for real. Anyone with the setup ca
 |---|---|
 | GitHub Actions workflows | Watch the first `ci.yml` run (especially the macOS and Windows test jobs) and a first `release.yml` tag build |
 | GitLab CI pipeline | Push to a GitLab mirror and fix whatever the first run turns up (runner tags, apt packages, the Windows Python install) |
-| Windows / macOS desktop builds (PyInstaller) | Run `packaging/build_app.py` on each OS and smoke-test the app |
+| Desktop builds on real hardware | CI smoke-tests every build; still worth a manual check on an Intel Mac, Windows on ARM and a Raspberry Pi 4/5 |
 | Pico RGB Keypad Base profile | Hardware test (`rgbkeypad`), then set `"tested": true` |
 | Adafruit MacroPad RP2040 profile | Hardware test (`adafruit_macropad`) |
 | grandMA3 command OSC (`/gma3/cmd`) | Test against MA3 onPC. The address format was written from memory of the MA3 docs |

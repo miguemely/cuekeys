@@ -22,9 +22,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-gui = ["PySide6>=6.6"]
-dev = ["pytest>=8", "ruff>=0.5", "PySide6>=6.6", "pytest-qt>=4.4"]
-build = ["pyinstaller>=6.6", "PySide6>=6.6"]
+gui = ["PySide6-Essentials>=6.6"]
+dev = ["pytest>=8", "ruff>=0.5", "PySide6-Essentials>=6.6", "pytest-qt>=4.4"]
+build = ["pyinstaller>=6.6", "PySide6-Essentials>=6.6"]
 
 [project.scripts]
 cuekeys = "cuekeys.cli:main"

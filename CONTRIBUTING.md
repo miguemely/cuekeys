@@ -25,7 +25,7 @@ editor, overlay and all tests run without one.
 | List device profiles | `.venv/bin/cuekeys profiles` |
 | Try a plugin profile | `CUEKEYS_DEVICE_PATH=examples/devices .venv/bin/cuekeys profiles` |
 | Build the firmware zip | `python scripts/build_firmware_bundle.py --out dist` |
-| Build a desktop app | `pip install -e ".[build]" && python packaging/build_app.py` |
+| Build a desktop app | `pip install -e ".[build]" && python packaging/build_app.py` (macOS: add `--arch universal2`; needs python.org's universal2 Python) |
 
 **Code style:**
 - Ruff (`pyproject.toml`) with a line length of 120.
@@ -112,8 +112,18 @@ in step when you change one. The README has a side-by-side table.
 
 - **Every push and PR:** ruff; pytest on Linux × Python 3.10–3.13 plus macOS and Windows; wheel and
   firmware zip builds.
-- **On a `vX.Y.Z` tag:** desktop apps for Linux, Windows and macOS, plus the wheel and firmware zip,
-  published as a GitHub Release (or GitLab Release and package registry).
+- **On a `vX.Y.Z` tag:** desktop apps for macOS (universal2), Windows (x64 and ARM64) and Linux (x64,
+  and ARM64 for Raspberry Pi), plus the wheel and firmware zip, published as a GitHub Release (or
+  GitLab Release and package registry). Every app is smoke-tested before release: CLI, bundled
+  profiles and firmware, and the GUI starting (on Linux, on a real X11 display under xvfb).
+  - The build is defined in `packaging/cuekeys.spec`, which also **trims** unused Qt modules
+    (QtPdf, QtQuick/QtQml, QtNetwork, QtSvg, the virtual keyboard, translations) and SSL. If you
+    start using another Qt module, remove it from `EXCLUDES` / `DROP` there.
+  - The Linux ARM64 build pins Qt 6.8 LTS (PySide6 6.8.0.2), because newer ARM64 wheels need glibc
+    2.39, which Raspberry Pi OS bookworm doesn't have. CI's `test-qt-lts` job keeps the app working
+    on it.
+  - GitLab CI still builds single-architecture apps (x64 Linux and Windows, and macOS on the
+    runner's architecture).
   - PyPI publishing is optional: on GitHub, set the repository variable `PUBLISH_PYPI=true` and set
     up PyPI trusted publishing; on GitLab, set `PYPI_TOKEN` and run the manual job.
 - **GitLab-only runner variables:** `WINDOWS_RUNNER_TAG` and `MACOS_RUNNER_TAG` (hosted macOS needs

@@ -11,3 +11,6 @@ build/
 firmware-bundle/
 *.tmp
 .DS_Store
+
+# PyInstaller: generated specs in the repo root (ours lives in packaging/)
+/*.spec

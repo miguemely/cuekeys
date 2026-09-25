@@ -142,8 +142,10 @@ default LED correction.
 
 - **Wheel:** hatchling. It bundles `firmware/` into `cuekeys/firmware`, and
   `device.firmware_source()` finds it in both a source checkout and an installed wheel.
-- **Desktop apps:** `packaging/build_app.py` (PyInstaller; it adds `firmware/` and the built-in
-  profiles as data).
+- **Desktop apps:** `packaging/build_app.py` runs PyInstaller with `packaging/cuekeys.spec`.
+  - The spec bundles `firmware/`, the built-in profiles and the license texts, and drops unused Qt
+    modules and plugins before assembly, so macOS signing stays valid.
+  - Targets: macOS universal2, Windows x64/ARM64, Linux x64/ARM64 (Raspberry Pi 4/5 on Qt 6.8 LTS).
 - **Firmware zip:** `scripts/build_firmware_bundle.py` (the Adafruit *py* bundle plus `pmk`, so it
   works on any CircuitPython version).
 - **CI/CD:** `.github/workflows/` (GitHub Actions) and `.gitlab-ci.yml` (GitLab CI). See

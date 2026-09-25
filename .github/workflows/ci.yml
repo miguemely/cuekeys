@@ -56,6 +56,26 @@ jobs:
           name: test-report-ubuntu-py${{ matrix.python }}
           path: report.xml
 
+  # The Raspberry Pi (linux-arm64) release build uses Qt 6.8 LTS (PySide6 6.8.0.2)
+  # for glibc compatibility with Raspberry Pi OS bookworm; keep the app working on it.
+  test-qt-lts:
+    name: test (ubuntu, py3.12, Qt 6.8 LTS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Qt system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libegl1 libgl1 libglib2.0-0 libxkbcommon0 libfontconfig1 libdbus-1-3
+      - run: pip install -e ".[dev]" "PySide6-Essentials==6.8.0.2"
+      - run: python -c "from PySide6.QtCore import qVersion; print('Qt', qVersion())"
+      - run: pytest -q
+
   # macOS / Windows minutes are billed at 10x / 2x on private repos, so these run
   # on pushes to main and on demand, not on every pull request.
   test-other-os:

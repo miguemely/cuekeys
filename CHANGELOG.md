@@ -18,7 +18,19 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - a release dry run: starting the release workflow by hand builds, smoke-tests and collects every
     release asset without publishing.
 
+- **More desktop builds:**
+  - macOS **universal2** (Intel and Apple Silicon);
+  - Windows **x64 and ARM64**;
+  - Linux **x64 and ARM64**. The ARM64 build targets Raspberry Pi 4/5 on 64-bit Raspberry Pi OS
+    bookworm and trixie, using Qt 6.8 LTS.
+  - Each build is smoke-tested in CI before release.
+
 ### Changed
+- **Smaller desktop apps:**
+  - depend on `PySide6-Essentials` instead of the full `PySide6`;
+  - the PyInstaller spec drops unused Qt modules (QtPdf, QtQuick/QtQml, QtNetwork, QtSvg, the
+    virtual keyboard, translations) and SSL.
+  - Result: the macOS app went from 99 MB to 61 MB (a 34 MB zip is now 21 MB).
 - **Renamed from "PMK Macro Manager" to CueKeys.** The project supports much more than Pimoroni
   hardware, and "PMK" is the name of Pimoroni's library.
   - The Python package and command are now `cuekeys` (formerly `pmk_macro_manager` and `pmm`).

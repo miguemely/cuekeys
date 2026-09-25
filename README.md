@@ -32,8 +32,11 @@ The keypad works on its own for keyboard, media and MIDI actions. The host app i
 | `cuekeys-<v>-macos-universal2.zip` | macOS 13 or newer, Intel and Apple Silicon |
 | `cuekeys-<v>-windows-x86_64.zip` | Windows 10/11 on Intel/AMD |
 | `cuekeys-<v>-windows-arm64.zip` | Windows 11 on ARM (Snapdragon and similar) |
-| `cuekeys-<v>-linux-x86_64.zip` | 64-bit Linux with glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+) |
-| `cuekeys-<v>-linux-arm64.zip` | **Raspberry Pi 4 / 5** with a 64-bit OS (Raspberry Pi OS bookworm or trixie, Ubuntu 22.04+), and other ARM64 Linux |
+| `cuekeys-<v>-linux-x86_64.zip` | 64-bit Linux with glibc 2.39+ (Ubuntu 24.04+, Debian 13+, Fedora 40+) |
+| `cuekeys-<v>-linux-arm64.zip` | **Raspberry Pi 4 / 5** with a 64-bit OS (Raspberry Pi OS trixie or newer, Ubuntu 24.04+), and other ARM64 Linux with glibc 2.39+ |
+
+The apps are built on the newest build images, so the Linux minimum moves up over time. On an older
+Linux (e.g. Raspberry Pi OS bookworm), install from Python instead: `pip install "cuekeys[gui]"`.
 
 The builds aren't code-signed yet. macOS: right-click the app and choose **Open** the first time.
 Windows: **More info → Run anyway**. The Raspberry Pi build uses Qt 6.8 LTS; 32-bit Raspberry Pi OS

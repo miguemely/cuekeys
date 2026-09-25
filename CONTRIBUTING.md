@@ -119,9 +119,10 @@ in step when you change one. The README has a side-by-side table.
   - The build is defined in `packaging/cuekeys.spec`, which also **trims** unused Qt modules
     (QtPdf, QtQuick/QtQml, QtNetwork, QtSvg, the virtual keyboard, translations) and SSL. If you
     start using another Qt module, remove it from `EXCLUDES` / `DROP` there.
-  - The Linux ARM64 build pins Qt 6.8 LTS (PySide6 6.8.0.2), because newer ARM64 wheels need glibc
-    2.39, which Raspberry Pi OS bookworm doesn't have. CI's `test-qt-lts` job keeps the app working
-    on it.
+  - Release apps are built on the newest runner images (`*-latest`; `ubuntu-24.04-arm` until GitHub
+    has a newer ARM image) with the newest PySide6. A Linux app needs at least the glibc of the image
+    it was built on, so moving the runner forward raises the minimum distro: update README's
+    download table when it does. CI's `test-qt-lts` job keeps source installs working on Qt 6.8.
   - GitLab CI still builds single-architecture apps (x64 Linux and Windows, and macOS on the
     runner's architecture).
   - PyPI publishing is optional: on GitHub, set the repository variable `PUBLISH_PYPI=true` and set

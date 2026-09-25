@@ -56,8 +56,8 @@ jobs:
           name: test-report-ubuntu-py${{ matrix.python }}
           path: report.xml
 
-  # The Raspberry Pi (linux-arm64) release build uses Qt 6.8 LTS (PySide6 6.8.0.2)
-  # for glibc compatibility with Raspberry Pi OS bookworm; keep the app working on it.
+  # Oldest Qt LTS we support from source installs (pip install cuekeys[gui] on older
+  # distros may resolve to it); the release apps use the newest PySide6.
   test-qt-lts:
     name: test (ubuntu, py3.12, Qt 6.8 LTS)
     runs-on: ubuntu-latest

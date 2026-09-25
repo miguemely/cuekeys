@@ -34,7 +34,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - macOS **universal2** (Intel and Apple Silicon);
   - Windows **x64 and ARM64**;
   - Linux **x64 and ARM64**. The ARM64 build targets Raspberry Pi 4/5 on 64-bit Raspberry Pi OS
-    bookworm and trixie, using Qt 6.8 LTS.
+    trixie or newer.
+  - All apps are built on the newest GitHub runner images with the newest PySide6/Qt. The Linux apps
+    therefore need a current distribution (glibc 2.39+ today: Ubuntu 24.04+, Debian 13+, Raspberry
+    Pi OS trixie+); on older ones, install with `pip install "cuekeys[gui]"` instead.
   - Each build is smoke-tested in CI before release.
 
 ### Changed

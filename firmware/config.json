@@ -94,7 +94,7 @@
           "press": [
             {
               "type": "text",
-              "text": "Hello from PMK!"
+              "text": "Hello from CueKeys!"
             }
           ]
         },
@@ -510,7 +510,7 @@
       "name": "Companion",
       "color": "#e03030",
       "mode": "companion",
-      "companion_id": "pmk-example",
+      "companion_id": "cuekeys-example",
       "keys": {
         "0": {
           "label": "Next layer\n(hold: home)",

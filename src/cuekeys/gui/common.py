@@ -7,6 +7,18 @@ from ..config import describe_action, in_companion_region, key_is_assigned
 from ..devices import profile_for
 
 
+def app_settings():
+    """QSettings for the app. Copies values saved under the pre-rename name once."""
+    from PySide6.QtCore import QSettings
+
+    settings = QSettings("cuekeys", "CueKeys")
+    if not settings.allKeys():
+        legacy = QSettings("pmk-macro-manager", "PMK Macro Manager")
+        for key in legacy.allKeys():
+            settings.setValue(key, legacy.value(key))
+    return settings
+
+
 class RuntimeSignals(QObject):
     """Re-emits Runtime listener callbacks (background threads) on the Qt thread."""
 

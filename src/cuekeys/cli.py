@@ -1,4 +1,4 @@
-"""Command line interface: ``pmm``."""
+"""Command line interface: ``cuekeys``."""
 
 import argparse
 import json
@@ -140,7 +140,7 @@ def cmd_init(args):
 
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="pmm", description="PMK Macro Manager")
+    p = argparse.ArgumentParser(prog="cuekeys", description="CueKeys")
     p.add_argument("--version", action="version", version=__version__)
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="command")
@@ -172,7 +172,7 @@ def build_parser():
     sp = add("init", cmd_init, "create a new layout file", config=False)
     sp.add_argument("output", nargs="?", default="layout.json")
     sp.add_argument("--example", action="store_true", help="include a demo layout")
-    sp.add_argument("--device", help="device profile id (see 'pmm profiles')")
+    sp.add_argument("--device", help="device profile id (see 'cuekeys profiles')")
     return p
 
 

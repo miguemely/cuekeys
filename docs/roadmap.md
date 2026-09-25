@@ -30,7 +30,7 @@ Code exists for these but hasn't been checked for real. Anyone with the setup ca
 | Idea | Notes | Size |
 |---|---|---|
 | MacroPad rotary encoder and OLED | Extend the driver interface with an optional `poll_encoders()` and `display_text()`. Add `rotate_cw` / `rotate_ccw` slots, or encoder actions. Show the layer name on the OLED | M |
-| Host-side action and bridge plugins | An entry-point group, e.g. `pmk_macro_manager.actions`, that registers `ACTION_SPECS` entries plus a runtime handler for `host`-routed actions. The firmware side stays generic by routing through `{"t": "plugin", "name": …}` | L |
+| Host-side action and bridge plugins | An entry-point group, e.g. `cuekeys.actions`, that registers `ACTION_SPECS` entries plus a runtime handler for `host`-routed actions. The firmware side stays generic by routing through `{"t": "plugin", "name": …}` | L |
 | Feedback into LEDs | MIDI in or OSC in (for example grandMA executor state or OBS scene) → key colours, like the Companion LED path (`led` message) | M |
 | Companion button images | Register with `BITMAPS=<size>` and draw the images on the overlay | M |
 | Overlay on all virtual desktops on Windows / Linux | Linux: `_NET_WM_STATE_STICKY` over X11. Windows: no public API; investigate | M |

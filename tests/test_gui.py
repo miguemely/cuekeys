@@ -5,8 +5,8 @@ pytest.importorskip("pytestqt")
 
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 
-from pmk_macro_manager.examples import example_config  # noqa: E402
-from pmk_macro_manager.runtime import Runtime  # noqa: E402
+from cuekeys.examples import example_config  # noqa: E402
+from cuekeys.runtime import Runtime  # noqa: E402
 
 from .test_runtime import FakeLink, FakeSatellite  # noqa: E402
 
@@ -17,8 +17,8 @@ def window(qtbot, monkeypatch, tmp_path):
 
     QSettings.setDefaultFormat(QSettings.IniFormat)
     QSettings.setPath(QSettings.IniFormat, QSettings.UserScope, str(tmp_path))
-    from pmk_macro_manager.gui.common import RuntimeSignals
-    from pmk_macro_manager.gui.editor import MainWindow
+    from cuekeys.gui.common import RuntimeSignals
+    from cuekeys.gui.editor import MainWindow
 
     runtime = Runtime(example_config(), link=FakeLink(connected=False), satellite_factory=FakeSatellite)
     signals = RuntimeSignals(runtime)
@@ -47,7 +47,7 @@ def test_layer_management(window):
     assert len(window.config["layers"]) == count + 1
     window.layer_mode.setCurrentIndex(window.layer_mode.findData("companion"))
     assert window.config["layers"][-1]["mode"] == "companion"
-    assert window.config["layers"][-1]["companion_id"].startswith("pmk-")
+    assert window.config["layers"][-1]["companion_id"].startswith("ck-")
     window.move_layer(-1)
     assert window.layer_index == count - 1
 
@@ -61,7 +61,7 @@ def test_overlay_renders_and_follows_layer(window, qtbot):
 
 
 def test_action_form_updates_action(window):
-    from pmk_macro_manager.gui.actions import ActionForm
+    from cuekeys.gui.actions import ActionForm
 
     action = {"type": "midi_note", "note": 60, "velocity": 127, "mode": "momentary"}
     form = ActionForm(lambda: ["a"])
@@ -90,24 +90,24 @@ def test_overlay_cycle_levels(window, qtbot):
 
 
 def test_companion_page_button_labels():
-    from pmk_macro_manager.gui.common import companion_type_label
+    from cuekeys.gui.common import companion_type_label
 
-    assert companion_type_label({"type": "PAGENUM", "page": 4, "page_name": "PMK 1"}) == "PMK 1"
+    assert companion_type_label({"type": "PAGENUM", "page": 4, "page_name": "CueKeys 1"}) == "CueKeys 1"
     assert companion_type_label({"type": "PAGENUM", "page": 4}) == "Page 4"
     assert companion_type_label({"type": "PAGENUM"}) == "Page"
     assert companion_type_label({"type": "PAGEUP"}) == "Page ▲"
 
 
 def test_companion_location_badge_rules():
-    from pmk_macro_manager.config import default_config
-    from pmk_macro_manager.gui.common import cell_badge, cell_content
+    from cuekeys.config import default_config
+    from cuekeys.gui.common import cell_badge, cell_content
 
     config = default_config()
     config["layers"].append({"name": "C", "mode": "companion", "keys": {
         "7": {"press": [{"type": "text", "text": "x"}]}}})
     states = {
         (1, 3): {"type": "BUTTON", "text": "Go", "color": (0, 0, 0), "location": "5/0/0"},
-        (1, 2): {"type": "PAGENUM", "text": "", "location": "5/1/0", "page_name": "PMK 2"},
+        (1, 2): {"type": "PAGENUM", "text": "", "location": "5/1/0", "page_name": "CueKeys 2"},
         (1, 11): {"type": "BUTTON", "text": "", "color": (0, 0, 0), "location": "5/0/2"},
         (1, 15): {"type": "BUTTON", "text": "", "color": (0, 90, 0), "location": "5/0/3"},
         (1, 7): {"type": "BUTTON", "text": "Mine?", "location": "5/0/1"},
@@ -117,7 +117,7 @@ def test_companion_location_badge_rules():
     assert cell_badge(config, 1, 2, states) is None       # page number button
     assert cell_badge(config, 1, 11, states) is None      # empty slot
     assert cell_badge(config, 1, 7, states) is None       # assigned locally
-    assert cell_badge(config, 1, 0, states) is None       # bottom row is PMK's
+    assert cell_badge(config, 1, 0, states) is None       # bottom row is local
     label, color = cell_content(config, 1, 3, states)
     assert label == "Go" and color.name() != "#000000"   # drawn as a real button
 
@@ -125,7 +125,7 @@ def test_companion_location_badge_rules():
 def test_led_calibration_dialog(window):
     from PySide6.QtWidgets import QDialog
 
-    from pmk_macro_manager.gui.calibration import CalibrationDialog
+    from cuekeys.gui.calibration import CalibrationDialog
 
     link = FakeLink(connected=True)
     window.runtime.link = link
@@ -149,7 +149,7 @@ def test_led_calibration_dialog(window):
 def test_overlay_display_selection(window, monkeypatch):
     from PySide6.QtGui import QGuiApplication
 
-    from pmk_macro_manager.gui.overlay import screen_names
+    from cuekeys.gui.overlay import screen_names
 
     class FakeScreen:
         def __init__(self, name):
@@ -190,7 +190,7 @@ def test_overlay_one_window_per_display(window):
 def test_screen_picker_round_trip():
     from PySide6.QtCore import Qt
 
-    from pmk_macro_manager.gui.settings import _ScreenPicker
+    from cuekeys.gui.settings import _ScreenPicker
 
     assert _ScreenPicker("all").value() == "all"
     picker = _ScreenPicker(["Old monitor"])                 # saved but not connected

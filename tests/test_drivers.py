@@ -50,13 +50,13 @@ def drivers(monkeypatch):
     neopixel.NeoPixel, neopixel.GRB, neopixel.RGB = FakeStrip, "GRB", "RGB"
     for name, module in (("board", board), ("keypad", keypad), ("neopixel", neopixel)):
         monkeypatch.setitem(sys.modules, name, module)
-    for name in [m for m in sys.modules if m.startswith("pmkdrivers")]:
+    for name in [m for m in sys.modules if m.startswith("cuekeys_drivers")]:
         monkeypatch.delitem(sys.modules, name)
     return importlib
 
 
 def test_keypad_keys_driver_with_pixels(drivers):
-    mod = drivers.import_module("pmkdrivers.keypad_keys")
+    mod = drivers.import_module("cuekeys_drivers.keypad_keys")
     hw = mod.Hardware({"pins": ["KEY1", "KEY2", "KEY3"], "pixels": {"pin": "NEOPIXEL", "count": 3}})
     assert hw.num_keys == 3 and hw.has_leds
     hw.keys.events.items = [FakeEvent(2, True), FakeEvent(2, False)]
@@ -68,7 +68,7 @@ def test_keypad_keys_driver_with_pixels(drivers):
 
 
 def test_keypad_keys_key_map_and_no_leds(drivers):
-    mod = drivers.import_module("pmkdrivers.keypad_keys")
+    mod = drivers.import_module("cuekeys_drivers.keypad_keys")
     hw = mod.Hardware({"pins": ["GP0", "GP1", "GP2"], "key_map": [1, None, 0]})
     assert hw.num_keys == 2 and not hw.has_leds
     hw.keys.events.items = [FakeEvent(0, True), FakeEvent(1, True), FakeEvent(2, True)]
@@ -78,7 +78,7 @@ def test_keypad_keys_key_map_and_no_leds(drivers):
 
 
 def test_keypad_matrix_driver(drivers):
-    mod = drivers.import_module("pmkdrivers.keypad_matrix")
+    mod = drivers.import_module("cuekeys_drivers.keypad_matrix")
     hw = mod.Hardware({"rows": ["GP0", "GP1"], "columns": ["GP2", "GP3", "GP4"],
                        "pixels": {"pin": "GP16", "map": [5, 4, 3, 2, 1, 0], "count": 6}})
     assert hw.num_keys == 6
@@ -89,7 +89,7 @@ def test_keypad_matrix_driver(drivers):
 
 
 def test_bad_pin_name(drivers):
-    mod = drivers.import_module("pmkdrivers.keypad_keys")
+    mod = drivers.import_module("cuekeys_drivers.keypad_keys")
     with pytest.raises(ValueError, match="no pin"):
         mod.Hardware({"pins": ["NOPE"]})
 
@@ -97,9 +97,9 @@ def test_bad_pin_name(drivers):
 def test_builtin_profiles_name_existing_drivers():
     from pathlib import Path
 
-    from pmk_macro_manager import devices
+    from cuekeys import devices
 
-    driver_dir = Path(__file__).resolve().parent.parent / "firmware" / "lib" / "pmkdrivers"
+    driver_dir = Path(__file__).resolve().parent.parent / "firmware" / "lib" / "cuekeys_drivers"
     for profile in devices.all_profiles().values():
         if profile.driver_file is None:
             assert (driver_dir / (profile.driver + ".py")).exists(), profile.id

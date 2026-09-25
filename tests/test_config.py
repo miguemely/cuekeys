@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from pmk_macro_manager import config as cfg
-from pmk_macro_manager.examples import example_config
-from pmk_macro_manager.keycodes import parse_combo
+from cuekeys import config as cfg
+from cuekeys.examples import example_config
+from cuekeys.keycodes import parse_combo
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -40,7 +40,7 @@ def test_validation_errors(action, fragment):
 
 
 def test_companion_rows_validation_and_region():
-    from pmk_macro_manager import devices
+    from cuekeys import devices
 
     keybow = devices.get_profile("keybow2040")
     config = cfg.default_config()

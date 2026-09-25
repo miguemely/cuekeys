@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Tag matches __version__
         run: |
-          VERSION=$(PYTHONPATH=src python3 -c "import pmk_macro_manager as p; print(p.__version__)")
+          VERSION=$(PYTHONPATH=src python3 -c "import cuekeys as p; print(p.__version__)")
           test "v$VERSION" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != version $VERSION"; exit 1; }
 
   python-dist:
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.os }}
-          path: dist/pmk-macro-manager-*.zip
+          path: dist/cuekeys-*.zip
 
   release:
     needs: [python-dist, app]
@@ -84,7 +84,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" artifacts/* \
-            --title "PMK Macro Manager ${GITHUB_REF_NAME}" \
+            --title "CueKeys ${GITHUB_REF_NAME}" \
             --notes "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive. See CHANGELOG.md. Free for non-commercial use (PolyForm Noncommercial 1.0.0); commercial use needs a license - see COMMERCIAL-LICENSE.md."
 
   # Optional: set the repository variable PUBLISH_PYPI=true and configure PyPI
@@ -101,5 +101,5 @@ jobs:
         with:
           name: python-dist
           path: dist
-      - run: rm -f dist/pmk-macro-manager-firmware-*.zip
+      - run: rm -f dist/cuekeys-firmware-*.zip
       - uses: pypa/gh-action-pypi-publish@release/v1

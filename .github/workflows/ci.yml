@@ -87,7 +87,7 @@ jobs:
       - name: Wheel bundles the firmware and licenses
         run: |
           pip install dist/*.whl
-          python -c "from pmk_macro_manager import device; print(device.firmware_source())"
+          python -c "from cuekeys import device; print(device.firmware_source())"
           unzip -l dist/*.whl | grep -q "licenses/LICENSE"
       - name: Firmware bundle
         env:

@@ -1,4 +1,4 @@
-# PMK Macro Manager - GitLab CI/CD
+# CueKeys - GitLab CI/CD
 #
 # Every push / MR:  lint -> test (Python 3.10-3.13) -> wheel + firmware bundle
 # Tags (vX.Y.Z):    + desktop apps for Linux / Windows / macOS -> GitLab release
@@ -18,7 +18,7 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   QT_QPA_PLATFORM: offscreen
-  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/pmk-macro-manager/${CI_COMMIT_TAG}"
+  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/cuekeys/${CI_COMMIT_TAG}"
   WINDOWS_RUNNER_TAG: saas-windows-medium-amd64
   MACOS_RUNNER_TAG: saas-macos-medium-m1
 
@@ -64,7 +64,7 @@ version-matches-tag:
   rules:
     - if: $CI_COMMIT_TAG
   script:
-    - VERSION=$(PYTHONPATH=src python -c "import pmk_macro_manager as p; print(p.__version__)")
+    - VERSION=$(PYTHONPATH=src python -c "import cuekeys as p; print(p.__version__)")
     - test "v$VERSION" = "$CI_COMMIT_TAG" || { echo "tag $CI_COMMIT_TAG != version $VERSION"; exit 1; }
 
 # ------------------------------------------------------------------ test
@@ -93,7 +93,7 @@ wheel:
     - pip install -q build
     - python -m build
     - pip install dist/*.whl
-    - python -c "from pmk_macro_manager import device; print(device.firmware_source())"
+    - python -c "from cuekeys import device; print(device.firmware_source())"
   artifacts:
     paths: [dist/*.whl, dist/*.tar.gz]
     expire_in: 30 days
@@ -103,7 +103,7 @@ firmware-bundle:
   script:
     - python scripts/build_firmware_bundle.py --out dist
   artifacts:
-    paths: [dist/pmk-macro-manager-firmware-*.zip]
+    paths: [dist/cuekeys-firmware-*.zip]
     expire_in: 30 days
 
 # ------------------------------------------------------------------ package
@@ -118,7 +118,7 @@ app-linux:
   script:
     - python packaging/build_app.py
   artifacts:
-    paths: [dist/pmk-macro-manager-*-linux-*.zip]
+    paths: [dist/cuekeys-*-linux-*.zip]
     expire_in: 30 days
 
 app-windows:
@@ -133,7 +133,7 @@ app-windows:
   script:
     - python packaging/build_app.py
   artifacts:
-    paths: [dist/pmk-macro-manager-*-windows-*.zip]
+    paths: [dist/cuekeys-*-windows-*.zip]
     expire_in: 30 days
 
 app-macos:
@@ -149,7 +149,7 @@ app-macos:
   script:
     - python packaging/build_app.py
   artifacts:
-    paths: [dist/pmk-macro-manager-*-macos-*.zip]
+    paths: [dist/cuekeys-*-macos-*.zip]
     expire_in: 30 days
 
 # ------------------------------------------------------------------ release
@@ -187,7 +187,7 @@ release:
   script:
     - |
       LINKS=$(while IFS= read -r line; do printf -- "--assets-link '%s' " "$line"; done < assets.jsonl)
-      eval "release-cli create --name 'PMK Macro Manager $CI_COMMIT_TAG' --tag-name '$CI_COMMIT_TAG' \
+      eval "release-cli create --name 'CueKeys $CI_COMMIT_TAG' --tag-name '$CI_COMMIT_TAG' \
         --description 'Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive.' \
         $LINKS"
 

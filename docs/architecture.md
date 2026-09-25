@@ -7,7 +7,7 @@
 │ code.py main loop                                                    │
 │   driver.poll() ──► Engine.press/release ──► timeline queue ──► tick │
 │        ▲                     │                                       │
-│   pmkdrivers/<driver>        ├── backend.key_down/…  → USB HID        │
+│   cuekeys_drivers/<driver>        ├── backend.key_down/…  → USB HID        │
 │   (keys + LEDs)              ├── backend.midi(bytes) → USB MIDI       │
 │        ▲                     ├── backend.set_led     → driver LEDs    │
 │        └─ set_led/show ◄─────┘   backend.host(msg)   → usb_cdc.data ──┼──┐
@@ -38,7 +38,7 @@ editing, the overlay and deployment.
 ### Main loop (`firmware/code.py`)
 
 1. Load `/config.json`. On error, fall back to an empty layer and light every key red.
-2. `make_hardware(device)` imports `pmkdrivers.<device.driver>` and builds `Hardware(driver_config)`.
+2. `make_hardware(device)` imports `cuekeys_drivers.<device.driver>` and builds `Hardware(driver_config)`.
    Old layouts that only have `device.hardware` are mapped through `LEGACY_DRIVERS`.
 3. Build the `Engine` with a `Backend` (HID keyboard + layout, consumer control, `usb_midi.ports[1]`,
    `HostLink`, driver LEDs) and a millisecond clock (`time.monotonic_ns() // 1_000_000`; integer ms,
@@ -46,7 +46,7 @@ editing, the overlay and deployment.
 4. Loop: `hardware.poll(now)` → `engine.press/release` → `engine.tick()` → `hardware.show()`, then
    send `hello` when the serial port (re)connects, then handle host messages.
 
-### Engine (`firmware/lib/pmkmacro/engine.py`)
+### Engine (`firmware/lib/cuekeys_engine/engine.py`)
 
 - **One timeline.** Every action is scheduled on a single queue (`_schedule`). A `delay` action moves
   the cursor forward. Macros never interleave, and release/undo steps always run after their press
@@ -67,7 +67,7 @@ editing, the overlay and deployment.
   goes to `backend.set_led`. `set_test_color` (used by calibration) overrides every key.
 - **Errors never crash the loop.** A failing action is reported to the host as a `log` message.
 
-### Drivers (`firmware/lib/pmkdrivers/`)
+### Drivers (`firmware/lib/cuekeys_drivers/`)
 
 See [devices.md](devices.md#writing-a-driver). `poll()` returns debounced `(key, pressed)` changes,
 and `set_led` / `show` drive the LEDs. Key numbers must match the profile's grid.
@@ -96,7 +96,7 @@ layout.json (host file) ──load──► merge_defaults ──► in-memory c
 - **Threads:**
   - `DeviceLink` reader (serial);
   - one `SatelliteClient` per Companion target;
-  - `pmk-bridge` worker for blocking jobs: grandMA2 Telnet, Companion HTTP presses, page-name
+  - `cuekeys-bridge` worker for blocking jobs: grandMA2 Telnet, Companion HTTP presses, page-name
     lookups.
   - OSC sends are non-blocking UDP and happen inline.
 - **Events.** `Runtime.emit(event, **data)` runs on those threads. The GUI wraps them with
@@ -140,7 +140,7 @@ default LED correction.
 
 ## Packaging and CI
 
-- **Wheel:** hatchling. It bundles `firmware/` into `pmk_macro_manager/firmware`, and
+- **Wheel:** hatchling. It bundles `firmware/` into `cuekeys/firmware`, and
   `device.firmware_source()` finds it in both a source checkout and an installed wheel.
 - **Desktop apps:** `packaging/build_app.py` (PyInstaller; it adds `firmware/` and the built-in
   profiles as data).

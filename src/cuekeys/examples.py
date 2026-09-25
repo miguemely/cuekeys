@@ -54,7 +54,7 @@ def example_config(profile_id=None):
             "11": {"label": "Undo", "press": [_k(["PRIMARY", "Z"])]},
             "15": {"label": "Redo", "press": [_k(["PRIMARY", "SHIFT", "Z"])]},
             "2": {"label": "Save", "color": "#20c050", "press": [_k(["PRIMARY", "S"])]},
-            "6": {"label": "Hello", "press": [{"type": "text", "text": "Hello from PMK!"}]},
+            "6": {"label": "Hello", "press": [{"type": "text", "text": "Hello from CueKeys!"}]},
             "10": {"label": "Select all\n+ copy", "press": [
                 _k(["PRIMARY", "A"]), {"type": "delay", "ms": 50}, _k(["PRIMARY", "C"])]},
             "14": {"label": "Shift\n(held)", "press": [_k(["SHIFT"], "hold")]},
@@ -105,7 +105,7 @@ def example_config(profile_id=None):
                 for n, k in enumerate([3, 7, 11, 2, 6, 10, 14, 1, 5, 9, 13, 4, 8, 12])
             }),
     }
-    # Top rows: a Companion surface. Bottom row: PMK's own keys.
+    # Top rows: a Companion surface. Bottom row: local keys.
     prev_page = {"label": "◀ Page", "color": "#4a5670",
                  "press": [{"type": "companion_page", "direction": "prev"}]}
     next_page = {"label": "Page ▶", "color": "#4a5670",
@@ -120,7 +120,7 @@ def example_config(profile_id=None):
         "name": "Companion",
         "color": "#e03030",
         "mode": "companion",
-        "companion_id": "pmk-example",
+        "companion_id": "cuekeys-example",
         "keys": {k: v for k, v in _bottom_row(target, bottom).items() if v is not None},
     }
     for layer in (editing, ma3, ma2):

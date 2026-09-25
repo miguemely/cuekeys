@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Commercial use of PMK Macro Manager needs a commercial license — see
+        Commercial use of CueKeys needs a commercial license — see
         [COMMERCIAL-LICENSE.md](../blob/main/COMMERCIAL-LICENSE.md). Share only what you're happy to
         have visible here; we'll continue privately.
   - type: input

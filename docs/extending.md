@@ -1,4 +1,4 @@
-# Extending PMK Macro Manager
+# Extending CueKeys
 
 Step-by-step recipes for the common kinds of change. Each one lists every file you'll touch and the test
 to add. Keep [AGENTS.md](../AGENTS.md#invariants-dont-break-these) open while you work.
@@ -21,12 +21,12 @@ This is the most common extension. You usually only need JSON. The full guide is
 
 1. Create `<plugin dir>/<id>/device.json` with the grid, driver and `driver_config`. Start from
    `examples/devices/diy_rp2040_3x3/`.
-2. `pmm profiles` should list it. Errors are printed there.
+2. `cuekeys profiles` should list it. Errors are printed there.
 3. If no built-in driver fits, add `driver.py` next to it (interface in
-   `firmware/lib/pmkdrivers/__init__.py`), plus a test with stubbed CircuitPython modules modelled on
+   `firmware/lib/cuekeys_drivers/__init__.py`), plus a test with stubbed CircuitPython modules modelled on
    `tests/test_drivers.py`.
-4. To ship it built in: move it to `src/pmk_macro_manager/devices/builtin/<id>/` (and a new driver to
-   `firmware/lib/pmkdrivers/`). Add the libraries it needs to `ADAFRUIT_LIBS` in
+4. To ship it built in: move it to `src/cuekeys/devices/builtin/<id>/` (and a new driver to
+   `firmware/lib/cuekeys_drivers/`). Add the libraries it needs to `ADAFRUIT_LIBS` in
    `scripts/build_firmware_bundle.py`, and add a row to the supported-devices table in
    `docs/devices.md`. The existing tests check that it loads, that its driver exists and that the demo
    layout remaps onto it.
@@ -35,11 +35,11 @@ This is the most common extension. You usually only need JSON. The full guide is
 
 Example: a `"serial_write"` action that sends text to the host, which writes it to another serial device.
 
-1. **Schema:** in `src/pmk_macro_manager/config.py`, add an entry to `ACTION_SPECS` with a `label` and
+1. **Schema:** in `src/cuekeys/config.py`, add an entry to `ACTION_SPECS` with a `label` and
    `fields` (built with the `F()` helper; kinds: `str text int bool choice keys json layer`). The
    editor form is generated from this. Add a summary line in `describe_action()`, and extra
    cross-field checks in `validate_action()` if needed.
-2. **Firmware:** in `firmware/lib/pmkmacro/engine.py`, add the name to `ACTION_TYPES` and a branch in
+2. **Firmware:** in `firmware/lib/cuekeys_engine/engine.py`, add the name to `ACTION_TYPES` and a branch in
    `Engine.execute()`. If the action has an "off" state, push an undo callable into `undo`, and it
    runs on release automatically. Keep to the CircuitPython subset.
 3. **Host (only for network or host-side actions):** have the engine send
@@ -51,14 +51,14 @@ Example: a `"serial_write"` action that sends text to the host, which writes it 
    type missing on either side.
 6. **Docs:** add a row to the README's action reference, and a row to `docs/protocol.md` for any new
    message.
-7. **Deploy:** firmware changes need `pmm install-firmware --no-boot` (or Keypad → Install / update
+7. **Deploy:** firmware changes need `cuekeys install-firmware --no-boot` (or Keypad → Install / update
    firmware) on real hardware.
 
 ## Add a network bridge
 
 Example: a vMix, OBS, QLab or ETC Eos integration.
 
-1. Put the protocol client in its own module, `src/pmk_macro_manager/<name>.py`. Keep it free of Qt
+1. Put the protocol client in its own module, `src/cuekeys/<name>.py`. Keep it free of Qt
    and threads, and make it testable against a local fake server (see `test_companion.py` /
    `test_osc_grandma.py`).
 2. Add its settings under `bridge.<name>` in `config.default_config()`. Settings merge in
@@ -87,7 +87,7 @@ Example: a vMix, OBS, QLab or ETC Eos integration.
 
 ## Add a CLI command
 
-In `src/pmk_macro_manager/cli.py`: write `cmd_<name>(args)` returning an exit code, and register it
+In `src/cuekeys/cli.py`: write `cmd_<name>(args)` returning an exit code, and register it
 in `build_parser()` with `add(...)`. `OSError`, `RuntimeError` and `KeyError` become clean
 `error: …` messages in `main()`.
 
@@ -118,6 +118,6 @@ Write down what you learned in [platform-notes.md](platform-notes.md).
 
 | Extend | How | Discovery |
 |---|---|---|
-| Keypad models | `device.json` (+ optional `driver.py`) | built-in dir, `pmk_macro_manager.devices` entry point, user plugin folder, `$PMM_DEVICE_PATH` |
-| Firmware drivers | `lib/pmkdrivers/<name>.py` with a `Hardware` class | named by the profile's `driver`; copied to the pad by install |
+| Keypad models | `device.json` (+ optional `driver.py`) | built-in dir, `cuekeys.devices` entry point, user plugin folder, `$CUEKEYS_DEVICE_PATH` |
+| Firmware drivers | `lib/cuekeys_drivers/<name>.py` with a `Hardware` class | named by the profile's `driver`; copied to the pad by install |
 | Actions / bridges | Code in this repo (see above) | Not pluggable at runtime yet. See [roadmap.md](roadmap.md) |

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from pmk_macro_manager import devices
+from cuekeys import devices
 
 KEYBOW_GRID = [[3, 7, 11, 15], [2, 6, 10, 14], [1, 5, 9, 13], [0, 4, 8, 12]]
 
@@ -12,7 +12,7 @@ def fresh(monkeypatch, tmp_path):
     """Isolate profile loading from the real user folder and environment."""
     monkeypatch.setattr(devices, "user_device_dir", lambda: tmp_path / "user")
     monkeypatch.setattr(devices, "_entry_point_dirs", lambda: [])
-    monkeypatch.delenv("PMM_DEVICE_PATH", raising=False)
+    monkeypatch.delenv("CUEKEYS_DEVICE_PATH", raising=False)
     devices.reload()
     yield tmp_path
     monkeypatch.undo()
@@ -86,13 +86,13 @@ def test_user_plugins_override_and_bad_ones_are_reported(fresh, monkeypatch):
     extra.mkdir()
     (extra / "keybow.json").write_text(json.dumps(
         {"id": "keybow2040", "name": "Overridden", "grid": KEYBOW_GRID, "driver": "pmk_keybow2040"}))
-    monkeypatch.setenv("PMM_DEVICE_PATH", str(extra))
+    monkeypatch.setenv("CUEKEYS_DEVICE_PATH", str(extra))
     profiles = devices.reload()
     assert profiles["mypad"].driver_file == user / "mypad" / "driver.py"
     assert profiles["mypad"].firmware_device() == {
         "profile": "mypad", "driver": "mypad", "driver_config": {}, "num_keys": 3,
         "led_gamma": 2.2, "led_balance": [1.0, 1.0, 1.0]}
-    assert profiles["keybow2040"].name == "Overridden"          # $PMM_DEVICE_PATH wins
+    assert profiles["keybow2040"].name == "Overridden"          # $CUEKEYS_DEVICE_PATH wins
     assert any("broken.json" in e for e in devices.load_errors())
 
 
@@ -103,9 +103,18 @@ def test_profile_for_config_and_legacy(fresh):
 
 
 def test_example_layout_adapts_to_each_device(fresh):
-    from pmk_macro_manager import config as cfg
-    from pmk_macro_manager.examples import example_config
+    from cuekeys import config as cfg
+    from cuekeys.examples import example_config
 
     for profile_id in devices.all_profiles():
         config = example_config(profile_id)
         assert cfg.validate(config) == [], profile_id
+
+
+def test_legacy_plugin_folder_is_still_searched(fresh, monkeypatch):
+    legacy = fresh / "legacy"
+    (legacy / "oldpad").mkdir(parents=True)
+    (legacy / "oldpad" / "device.json").write_text(json.dumps(
+        {"id": "oldpad", "grid": [[0, 1]], "driver": "keypad_keys"}))
+    monkeypatch.setattr(devices, "legacy_device_dir", lambda: legacy)
+    assert "oldpad" in devices.reload()

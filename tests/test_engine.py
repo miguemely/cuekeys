@@ -1,5 +1,5 @@
-from pmkmacro import midi
-from pmkmacro.engine import ACTION_TYPES, Engine
+from cuekeys_engine import midi
+from cuekeys_engine.engine import ACTION_TYPES, Engine
 
 
 class Clock:
@@ -220,7 +220,7 @@ def test_leds_and_companion_layer():
 
 
 def test_led_gamma_balance_and_test_pattern():
-    from pmkmacro.engine import color_lut
+    from cuekeys_engine.engine import color_lut
 
     layers = [{"keys": {"0": {"color": "#ffffff", "press": [{"type": "text", "text": "x"}]},
                         "1": {"color": "#80ff40", "press": [{"type": "text", "text": "x"}]}}}]
@@ -238,6 +238,6 @@ def test_led_gamma_balance_and_test_pattern():
 
 
 def test_action_types_match_host_schema():
-    from pmk_macro_manager.config import ACTION_TYPES as HOST_TYPES
+    from cuekeys.config import ACTION_TYPES as HOST_TYPES
 
     assert set(ACTION_TYPES) == set(HOST_TYPES)

@@ -1,4 +1,4 @@
-"""Device profiles: which keypads PMK Macro Manager can drive.
+"""Device profiles: which keypads CueKeys can drive.
 
 A profile is a folder with a ``device.json`` (and optionally a firmware
 ``driver.py``)::
@@ -16,7 +16,7 @@ A profile is a folder with a ``device.json`` (and optionally a firmware
       "led_gamma": 2.2,                            # colour correction defaults;
       "led_balance": [1.0, 1.0, 1.0],              # layouts can override both
       "connector": "top",                          # USB side, for the editor hint
-      "driver": "pmk_keybow2040",                  # module in CIRCUITPY/lib/pmkdrivers
+      "driver": "pmk_keybow2040",                  # module in CIRCUITPY/lib/cuekeys_drivers
       "driver_config": {},                         # passed to the driver
       "libraries": ["pmk", "adafruit_is31fl3731"]  # extra CIRCUITPY/lib requirements
     }
@@ -25,10 +25,10 @@ Profiles are loaded from, in order (later ones override earlier ones with the
 same id):
 
 1. the built-in ``devices/builtin`` folder,
-2. installed packages exposing the ``pmk_macro_manager.devices`` entry point
+2. installed packages exposing the ``cuekeys.devices`` entry point
    (a callable returning a folder path or a list of them),
 3. the user folder (see :func:`user_device_dir`),
-4. folders listed in ``$PMM_DEVICE_PATH`` (``os.pathsep`` separated).
+4. folders listed in ``$CUEKEYS_DEVICE_PATH`` (``os.pathsep`` separated).
 
 Each search folder may contain profile folders (``<dir>/<id>/device.json``) or
 plain ``*.json`` profile files.
@@ -43,7 +43,7 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 BUILTIN_DIR = Path(__file__).resolve().parent / "builtin"
-ENTRY_POINT_GROUP = "pmk_macro_manager.devices"
+ENTRY_POINT_GROUP = "cuekeys.devices"
 DEFAULT_PROFILE = "keybow2040"
 DEFAULT_GAMMA = 2.2
 LED_TYPES = ("rgb", "none")
@@ -165,15 +165,22 @@ class DeviceProfile:
 
 
 # ---------------------------------------------------------------------- loading
+def _config_base():
+    if sys.platform == "win32":
+        return Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support"
+    return Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+
+
 def user_device_dir():
     """Per-user folder for device plugins."""
-    if sys.platform == "win32":
-        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / "pmk-macro-manager" / "devices"
+    return _config_base() / "cuekeys" / "devices"
+
+
+def legacy_device_dir():
+    """Plugin folder used before the project was renamed from "PMK Macro Manager"."""
+    return _config_base() / "pmk-macro-manager" / "devices"
 
 
 def _entry_point_dirs():
@@ -195,8 +202,10 @@ def _entry_point_dirs():
 def search_paths():
     paths = [BUILTIN_DIR]
     paths.extend(_entry_point_dirs())
+    if legacy_device_dir().is_dir():
+        paths.append(legacy_device_dir())
     paths.append(user_device_dir())
-    extra = os.environ.get("PMM_DEVICE_PATH")
+    extra = os.environ.get("CUEKEYS_DEVICE_PATH")
     if extra:
         paths.extend(Path(p) for p in extra.split(os.pathsep) if p)
     return paths

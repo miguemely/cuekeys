@@ -6,10 +6,10 @@ AI agents should also read [AGENTS.md](AGENTS.md).
 ## Setup
 
 ```bash
-git clone <repo> && cd pimoroni-macro-manager
+git clone <repo> && cd cuekeys
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"      # PySide6, pytest, pytest-qt, ruff
-.venv/bin/pmm gui examples/demo-layout.json
+.venv/bin/cuekeys gui examples/demo-layout.json
 ```
 
 Python 3.10–3.13 is supported (CI tests all four). You don't need a keypad for most work: the
@@ -22,8 +22,8 @@ editor, overlay and all tests run without one.
 | Run all tests | `.venv/bin/python -m pytest -q` |
 | One file / test | `.venv/bin/python -m pytest tests/test_engine.py -k tap_hold -q` |
 | Lint (and auto-fix imports) | `.venv/bin/ruff check .` / `.venv/bin/ruff check --fix .` |
-| List device profiles | `.venv/bin/pmm profiles` |
-| Try a plugin profile | `PMM_DEVICE_PATH=examples/devices .venv/bin/pmm profiles` |
+| List device profiles | `.venv/bin/cuekeys profiles` |
+| Try a plugin profile | `CUEKEYS_DEVICE_PATH=examples/devices .venv/bin/cuekeys profiles` |
 | Build the firmware zip | `python scripts/build_firmware_bundle.py --out dist` |
 | Build a desktop app | `pip install -e ".[build]" && python packaging/build_app.py` |
 
@@ -54,11 +54,11 @@ Tests can't judge looks. For UI changes, render offscreen and look at the image:
 import sys; sys.path.insert(0, "tests")
 from PySide6.QtWidgets import QApplication
 app = QApplication([])
-from pmk_macro_manager.gui.theme import apply; apply(app)
-from pmk_macro_manager.examples import example_config
-from pmk_macro_manager.runtime import Runtime
-from pmk_macro_manager.gui.common import RuntimeSignals
-from pmk_macro_manager.gui.editor import MainWindow
+from cuekeys.gui.theme import apply; apply(app)
+from cuekeys.examples import example_config
+from cuekeys.runtime import Runtime
+from cuekeys.gui.common import RuntimeSignals
+from cuekeys.gui.editor import MainWindow
 from test_runtime import FakeLink, FakeSatellite
 rt = Runtime(example_config("adafruit_macropad"), link=FakeLink(False), satellite_factory=FakeSatellite)
 win = MainWindow(rt, RuntimeSignals(rt)); win._confirm_discard = lambda: True
@@ -73,7 +73,7 @@ platform. See [docs/platform-notes.md](docs/platform-notes.md).
 
 For changes to firmware, drivers, LEDs or key handling:
 
-1. `pmm install-firmware --no-boot --drive <CIRCUITPY> <layout.json>`. Only drop `--no-boot` if
+1. `cuekeys install-firmware --no-boot --drive <CIRCUITPY> <layout.json>`. Only drop `--no-boot` if
    `boot.py` changed, and then unplug and replug.
 2. Watch the console port (the non-data CDC port, 115200 baud) for tracebacks. Ctrl+C then Ctrl+D
    reloads.
@@ -120,7 +120,7 @@ in step when you change one. The README has a side-by-side table.
   Premium). Everywhere: `ADAFRUIT_BUNDLE` / `PMK_REF` pin firmware library versions.
 
 **To release:**
-1. Bump `__version__` in `src/pmk_macro_manager/__init__.py`.
+1. Bump `__version__` in `src/cuekeys/__init__.py`.
 2. Update `CHANGELOG.md`.
 3. Tag `vX.Y.Z` and push the tag.
 

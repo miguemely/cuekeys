@@ -171,7 +171,7 @@ class OverlayWindow(QWidget):
         self.runtime = runtime
         self.target_screen = screen
         self.pressed = set()
-        self.setWindowTitle("PMK overlay")
+        self.setWindowTitle("CueKeys overlay")
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         # macOS hides Qt::Tool windows when the app is inactive unless told not to.

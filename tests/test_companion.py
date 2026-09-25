@@ -4,7 +4,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from pmk_macro_manager import companion as comp
+from cuekeys import companion as comp
 
 
 def test_parse_line():
@@ -107,7 +107,7 @@ def test_satellite_end_to_end():
     t = threading.Thread(target=serve)
     t.start()
     client = comp.SatelliteClient("127.0.0.1", port, on_key_state=lambda *a: states.append(a), retry=0.2)
-    client.add_device("pad", "PMK test", 16)
+    client.add_device("pad", "CueKeys test", 16)
     client.start()
     deadline = time.time() + 5
     while not states and time.time() < deadline:
@@ -150,7 +150,7 @@ def test_page_name_over_http():
             paths.append(self.path)
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b"PMK 1")
+            self.wfile.write(b"CueKeys 1")
 
         def log_message(self, *args):
             pass
@@ -158,7 +158,7 @@ def test_page_name_over_http():
     httpd = HTTPServer(("127.0.0.1", 0), Handler)
     t = threading.Thread(target=httpd.handle_request)
     t.start()
-    assert comp.page_name("127.0.0.1", httpd.server_port, 4) == "PMK 1"
+    assert comp.page_name("127.0.0.1", httpd.server_port, 4) == "CueKeys 1"
     t.join(5)
     httpd.server_close()
     assert paths == ["/api/variable/internal/page_number_4_name/value"]

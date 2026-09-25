@@ -386,7 +386,7 @@ def validate(config):
 def companion_rows(layer, profile, rotation=0):
     """Rows (from the top) a Companion layer hands to Companion.
 
-    Defaults to all but the bottom row, which stays PMK's own.
+    Defaults to all but the bottom row, which stays local.
     """
     rows = profile.display_size(rotation)[0]
     wanted = layer.get("companion_rows")

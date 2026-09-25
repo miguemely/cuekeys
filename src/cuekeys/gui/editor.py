@@ -4,7 +4,7 @@ import copy
 import uuid
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, QSettings, QSize, Qt, QUrl, Signal
+from PySide6.QtCore import QRectF, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QIcon, QKeySequence, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QColorDialog,
@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 from .. import __version__, device, devices
 from .. import config as cfg
 from .actions import ActionListEditor
-from .common import cell_badge, cell_content, paint_key, text_color_for, to_qcolor
+from .common import app_settings, cell_badge, cell_content, paint_key, text_color_for, to_qcolor
 from .overlay import Overlay
 from .settings import SettingsDialog
 from .theme import T, repolish
@@ -230,7 +230,7 @@ class KeyPad(QWidget):
             if self.region_rows < rows:
                 last = self._cell_rect(rows - 1, 0)
                 first = self._cell_rect(self.region_rows, 0)
-                self._side_label(p, region.left(), (first.top() + last.bottom()) / 2, "PMK", T["muted"])
+                self._side_label(p, region.left(), (first.top() + last.bottom()) / 2, "LOCAL", T["muted"])
         p.end()
 
     @staticmethod
@@ -266,7 +266,7 @@ class MainWindow(QMainWindow):
         self.layer_index = 0
         self.key = 0
         self.pressed = set()
-        self.settings = QSettings("pmk-macro-manager", "PMK Macro Manager")
+        self.settings = app_settings()
         self.overlay = Overlay(runtime, signals)
         self.overlay.visibility_changed.connect(lambda on: self.overlay_action.setChecked(on))
 
@@ -485,8 +485,8 @@ class MainWindow(QMainWindow):
         from PySide6.QtCore import qVersion
 
         QMessageBox.about(
-            self, "PMK Macro Manager",
-            "<b>PMK Macro Manager %s</b><br>Macros, layers, MIDI/OSC, grandMA and Companion for "
+            self, "CueKeys",
+            "<b>CueKeys %s</b><br>Macros, layers, MIDI/OSC, grandMA and Companion for "
             "CircuitPython macro keypads.<br><br>"
             "Free for non-commercial use under the PolyForm Noncommercial License 1.0.0; commercial "
             "use needs a commercial license (see COMMERCIAL-LICENSE.md).<br><br>"
@@ -512,7 +512,7 @@ class MainWindow(QMainWindow):
     def _set_dirty(self, dirty=True):
         self.dirty = dirty
         name = self.path.name if self.path else "untitled"
-        self.setWindowTitle("%s%s — PMK Macro Manager" % (name, " •" if dirty else ""))
+        self.setWindowTitle("%s%s — CueKeys" % (name, " •" if dirty else ""))
 
     def _changed(self):
         self._set_dirty(True)
@@ -588,7 +588,7 @@ class MainWindow(QMainWindow):
         for rows in order:
             left = total - rows
             suffix = ("whole keypad" if left == 0 else
-                      "bottom row stays PMK" if left == 1 else "bottom %d rows stay PMK" % left)
+                      "bottom row stays local" if left == 1 else "bottom %d rows stay local" % left)
             self.layer_rows.addItem("%d×%d · %s" % (cols, rows, suffix), rows)
 
     def _update_layer_hint(self):
@@ -612,7 +612,7 @@ class MainWindow(QMainWindow):
         mode = self.layer_mode.currentData()
         layer["mode"] = mode
         if mode == "companion":
-            layer.setdefault("companion_id", "pmk-" + uuid.uuid4().hex[:8])
+            layer.setdefault("companion_id", "ck-" + uuid.uuid4().hex[:8])
             layer["companion_rows"] = self.layer_rows.currentData()
             target = self.layer_target.text().strip()
             if target:
@@ -639,7 +639,7 @@ class MainWindow(QMainWindow):
         layer["name"] = layer.get("name", "") + " copy"
         layer.pop("companion_id", None)
         if layer.get("mode") == "companion":
-            layer["companion_id"] = "pmk-" + uuid.uuid4().hex[:8]
+            layer["companion_id"] = "ck-" + uuid.uuid4().hex[:8]
         self.config["layers"].insert(self.layer_index + 1, layer)
         self.layer_index += 1
         self._layers_changed()
@@ -912,7 +912,7 @@ class MainWindow(QMainWindow):
                        % (board, profile.name, others))
         if QMessageBox.question(
                 self, "Install firmware",
-                "Copy PMK Macro Manager firmware for %s to\n%s\n%s\n\n"
+                "Copy CueKeys firmware for %s to\n%s\n%s\n\n"
                 "Existing code.py/boot.py will be replaced.%s" % (profile.name, drive, info, warning)
         ) != QMessageBox.Yes:
             return

@@ -1,5 +1,5 @@
 import pytest
-from pmkmacro import midi
+from cuekeys_engine import midi
 
 
 def test_channel_messages():

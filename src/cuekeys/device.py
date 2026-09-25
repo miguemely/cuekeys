@@ -172,10 +172,10 @@ def _sync_package(src_dir, dst_dir, prune=True):
 
 
 def install_firmware(drive=None, include_boot=True, profile=None):
-    """Copy code.py, boot.py, lib/pmkmacro and lib/pmkdrivers to the drive.
+    """Copy code.py, boot.py, lib/cuekeys_engine and lib/cuekeys_drivers to the drive.
 
     A plugin profile's own ``driver.py`` is installed as
-    ``lib/pmkdrivers/<driver>.py``. Returns the copied paths.
+    ``lib/cuekeys_drivers/<driver>.py``. Returns the copied paths.
     """
     src = firmware_source()
     dst = pick_drive(drive)
@@ -184,11 +184,15 @@ def install_firmware(drive=None, include_boot=True, profile=None):
     for name in names:
         _write(dst / name, (src / name).read_bytes())
         copied.append(dst / name)
-    copied += _sync_package(src / "lib" / "pmkmacro", dst / "lib" / "pmkmacro")
+    copied += _sync_package(src / "lib" / "cuekeys_engine", dst / "lib" / "cuekeys_engine")
+    # Firmware folders from before the rename to CueKeys; code.py no longer imports them.
+    for legacy in ("pmkmacro", "pmkdrivers"):
+        if (dst / "lib" / legacy).is_dir():
+            shutil.rmtree(dst / "lib" / legacy)
     # Don't prune drivers: plugin drivers installed earlier must survive.
-    copied += _sync_package(src / "lib" / "pmkdrivers", dst / "lib" / "pmkdrivers", prune=False)
+    copied += _sync_package(src / "lib" / "cuekeys_drivers", dst / "lib" / "cuekeys_drivers", prune=False)
     if profile is not None and profile.driver_file is not None:
-        target = dst / "lib" / "pmkdrivers" / (profile.driver + ".py")
+        target = dst / "lib" / "cuekeys_drivers" / (profile.driver + ".py")
         _write(target, profile.driver_file.read_bytes())
         copied.append(target)
     if not (dst / CONFIG_NAME).exists():

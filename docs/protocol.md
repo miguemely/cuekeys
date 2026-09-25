@@ -68,7 +68,7 @@ Schema summary; `config.py` is authoritative.
   },
   "layers": [{                        // → keypad
     "name": "Main", "color": "#3050ff", "mode": "local",   // or "companion"
-    "companion_id": "pmk-…", "companion_target": "default", "companion_rows": 3,
+    "companion_id": "ck-…", "companion_target": "default", "companion_rows": 3,
     "keys": {"0": {"label": "…", "color": "#…", "press": [ACTION], "release": [ACTION], "hold": [ACTION]}}
   }],
   "bridge": {                         // host only

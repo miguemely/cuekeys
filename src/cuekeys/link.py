@@ -42,7 +42,7 @@ class DeviceLink:
 
     def start(self):
         if self._thread is None:
-            self._thread = threading.Thread(target=self._run, name="pmk-link", daemon=True)
+            self._thread = threading.Thread(target=self._run, name="cuekeys-link", daemon=True)
             self._thread.start()
 
     def stop(self):

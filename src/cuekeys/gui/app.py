@@ -24,8 +24,8 @@ def _make_app():
     from .theme import apply as apply_theme
 
     apply_theme(app)
-    app.setApplicationName("PMK Macro Manager")
-    app.setOrganizationName("pmk-macro-manager")
+    app.setApplicationName("CueKeys")
+    app.setOrganizationName("cuekeys")
     # Let Ctrl+C in the terminal close the app.
     signal.signal(signal.SIGINT, lambda *_: app.quit())
     timer = QTimer()
@@ -38,9 +38,10 @@ def _make_app():
 def _load_config(path):
     if path:
         return cfg.load(path), path
-    from PySide6.QtCore import QSettings
 
-    last = QSettings("pmk-macro-manager", "PMK Macro Manager").value("last_file")
+    from .common import app_settings
+
+    last = app_settings().value("last_file")
     if last and os.path.exists(last):
         try:
             return cfg.load(last), last
@@ -89,7 +90,7 @@ def run_overlay(path=None, port=None):
         menu.addAction("Show / hide overlay", lambda: overlay.setVisible(not overlay.isVisible()))
         menu.addAction("Quit", app.quit)
         tray.setContextMenu(menu)
-        tray.setToolTip("PMK Macro Manager overlay")
+        tray.setToolTip("CueKeys overlay")
         tray.show()
         app._tray = tray
     app.setQuitOnLastWindowClosed(False)

@@ -1,7 +1,7 @@
 import socket
 
-from pmk_macro_manager import grandma
-from pmk_macro_manager.osc import OscSender, encode_message
+from cuekeys import grandma
+from cuekeys.osc import OscSender, encode_message
 
 
 def test_encode_message():

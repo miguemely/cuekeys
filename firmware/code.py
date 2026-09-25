@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-"""PMK Macro Manager firmware.
+"""CueKeys firmware.
 
 Reads ``/config.json`` (written by the host app) and turns the keypad into a
 USB keyboard + USB MIDI device with layers and macros. OSC, grandMA and
 Companion actions are forwarded to the host app over the ``usb_cdc.data``
 serial port as JSON lines.
 
-The keypad hardware is handled by a driver in /lib/pmkdrivers, chosen by the
-layout's ``device.driver`` (see pmkdrivers/__init__.py for the interface).
+The keypad hardware is handled by a driver in /lib/cuekeys_drivers, chosen by the
+layout's ``device.driver`` (see cuekeys_drivers/__init__.py for the interface).
 Requires /lib/adafruit_hid plus whatever the driver needs (e.g. pmk).
 """
 
@@ -22,7 +22,7 @@ from adafruit_hid.consumer_control import ConsumerControl
 from adafruit_hid.consumer_control_code import ConsumerControlCode
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keycode import Keycode
-from pmkmacro.engine import VERSION, Engine
+from cuekeys_engine.engine import VERSION, Engine
 
 CONFIG_PATH = "/config.json"
 
@@ -41,7 +41,7 @@ LEGACY_DRIVERS = {"keybow2040": "pmk_keybow2040", "rgbkeypad": "pmk_rgbkeypad"}
 
 def make_hardware(device):
     name = device.get("driver") or LEGACY_DRIVERS.get(device.get("hardware"), "pmk_keybow2040")
-    package = __import__("pmkdrivers." + name)
+    package = __import__("cuekeys_drivers." + name)
     module = getattr(package, name)
     config = dict(device.get("driver_config") or {})
     config.setdefault("debounce_ms", device.get("debounce_ms", 15))

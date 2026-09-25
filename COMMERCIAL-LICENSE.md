@@ -1,6 +1,6 @@
 # Licensing
 
-PMK Macro Manager is **source-available**. The source is public and free for non-commercial use under
+CueKeys is **source-available**. The source is public and free for non-commercial use under
 the [PolyForm Noncommercial License 1.0.0](LICENSE). **Any commercial use needs a separate commercial
 license** from the copyright holder.
 
@@ -31,7 +31,7 @@ If you're unsure whether your use counts as commercial, ask.
 
 Contact **Miguel Rodriguez**:
 
-- open a [**Commercial licensing** issue](https://github.com/miguemely/pimoroni-macro-manager/issues/new?template=commercial_license.yml) in this
+- open a [**Commercial licensing** issue](https://github.com/miguemely/cuekeys/issues/new?template=commercial_license.yml) in this
   repository (it only needs your contact details and a short description of your use; keep anything
   confidential out of it and we'll continue privately), or
 - reach out through GitHub: https://github.com/miguemely

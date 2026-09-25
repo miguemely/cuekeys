@@ -1,9 +1,9 @@
 import socket
 
-from pmk_macro_manager import grandma
-from pmk_macro_manager.config import default_config
-from pmk_macro_manager.osc import encode_message
-from pmk_macro_manager.runtime import Runtime, companion_device_id
+from cuekeys import grandma
+from cuekeys.config import default_config
+from cuekeys.osc import encode_message
+from cuekeys.runtime import Runtime, companion_device_id
 
 
 class FakeLink:
@@ -123,7 +123,7 @@ def test_bottom_row_stays_local_on_4x3_surface():
     rt, _ = make(config)
     sat = FakeSatellite()
     rt.satellites["default"] = sat
-    rt._on_message({"t": "key", "k": 4, "s": 1, "l": 1})   # bottom row -> PMK only
+    rt._on_message({"t": "key", "k": 4, "s": 1, "l": 1})   # bottom row -> local only
     assert sat.presses == []
     config["layers"][1]["companion_rows"] = 4
     rt._on_message({"t": "key", "k": 4, "s": 1, "l": 1})
@@ -175,14 +175,14 @@ def test_satellites_follow_companion_layers():
     assert rt.satellites == {}
     config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 12, 4)}  # 4x3 by default
+    assert rt.satellites["default"].devices == {"pad1": ("CueKeys C", 12, 4)}  # 4x3 by default
     config["layers"][-1]["companion_rows"] = 4
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 16, 4)}
+    assert rt.satellites["default"].devices == {"pad1": ("CueKeys C", 16, 4)}
     config["device"]["profile"] = "adafruit_macropad"   # 3 wide, 4 tall
     config["layers"][-1].pop("companion_rows")
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("PMK C", 9, 3)}
+    assert rt.satellites["default"].devices == {"pad1": ("CueKeys C", 9, 3)}
     config["layers"][-1]["mode"] = "local"
     rt.set_config(config)
     assert rt.satellites == {}
@@ -212,23 +212,23 @@ def test_macropad_companion_mapping():
 
 
 def test_companion_page_name_is_fetched_and_applied(monkeypatch):
-    from pmk_macro_manager import companion as comp
+    from cuekeys import companion as comp
 
     config = default_config()
     config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
     rt, events = make(config)
     rt._device_layers = {"pad1": 1}
     calls = []
-    monkeypatch.setattr(comp, "page_name", lambda host, port, page: calls.append((host, port, page)) or "PMK 1")
+    monkeypatch.setattr(comp, "page_name", lambda host, port, page: calls.append((host, port, page)) or "CueKeys 1")
     rt._on_companion_state("pad1", 1, {"type": "PAGENUM", "text": "", "page": 4})
     assert rt.companion_page_label(1) == "p.4"          # name not fetched yet
     job = rt._jobs.get_nowait()
     assert job == ("page_name", (1, "default", 4))
     rt._fetch_page_name(*job[1])
     assert calls == [("127.0.0.1", 8000, 4)]
-    assert rt.companion_states[(1, 7)]["page_name"] == "PMK 1"
-    assert rt.companion_page_label(1) == "PMK 1"
+    assert rt.companion_states[(1, 7)]["page_name"] == "CueKeys 1"
+    assert rt.companion_page_label(1) == "CueKeys 1"
     assert events[-1][0] == "companion"
     # later updates for the same page keep the name without another fetch
     rt._on_companion_state("pad1", 1, {"type": "PAGENUM", "text": "", "page": 4, "color": (1, 2, 3)})
-    assert rt.companion_states[(1, 7)]["page_name"] == "PMK 1" and rt._jobs.empty()
+    assert rt.companion_states[(1, 7)]["page_name"] == "CueKeys 1" and rt._jobs.empty()

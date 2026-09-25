@@ -35,7 +35,7 @@ def companion_device_id(layer, index):
     if layer.get("companion_id"):
         return str(layer["companion_id"])
     host = re.sub(r"[^A-Za-z0-9]+", "-", socket.gethostname()).strip("-").lower() or "host"
-    return "pmk-%s-l%d" % (host, index)
+    return "cuekeys-%s-l%d" % (host, index)
 
 
 class Runtime:
@@ -57,7 +57,7 @@ class Runtime:
         self.osc = OscSender()
         self._ma2 = None
         self._jobs = queue.Queue()
-        self._worker = threading.Thread(target=self._work, name="pmk-bridge", daemon=True)
+        self._worker = threading.Thread(target=self._work, name="cuekeys-bridge", daemon=True)
         self.link = link or DeviceLink(port, self._on_message, self._on_status)
 
     # ------------------------------------------------------------ lifecycle
@@ -258,7 +258,7 @@ class Runtime:
             target = layer.get("companion_target", "default")
             device_id = companion_device_id(layer, index)
             self._device_layers[device_id] = index
-            name = "PMK %s" % (layer.get("name") or "layer %d" % index)
+            name = "CueKeys %s" % (layer.get("name") or "layer %d" % index)
             rows = companion_rows(layer, profile, rotation)
             wanted.setdefault(target, {})[device_id] = (name, rows * width, width)
         targets = self._bridge("companion")
@@ -310,7 +310,7 @@ class Runtime:
         return self.config["layers"][layer].get("companion_target", "default")
 
     def companion_page_label(self, layer):
-        """"PMK 1" (page name), "p.4" (number only) or None if unknown."""
+        """"CueKeys 1" (page name), "p.4" (number only) or None if unknown."""
         page = self.companion_pages.get(layer)
         if page is None:
             return None

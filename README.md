@@ -1,4 +1,4 @@
-# PMK Macro Manager
+# CueKeys
 
 Create, edit and manage macros on CircuitPython macro keypads, on Windows, macOS and Linux. Pimoroni's **Keybow 2040** is tested, the **Pico RGB Keypad Base** and **Adafruit MacroPad RP2040** are included, and any other size or board can be added as a plugin (see [Adding a keypad](docs/devices.md)).
 
@@ -13,7 +13,7 @@ Create, edit and manage macros on CircuitPython macro keypads, on Windows, macOS
 
 ```
  ┌──────────── keypad (CircuitPython) ────────────┐         ┌──────────── host app (Python / Qt) ─────────────┐
- │ code.py + lib/pmkmacro (layers, macro engine)  │  USB    │ editor ─ overlay ─ runtime                       │
+ │ code.py + lib/cuekeys_engine (layers, macro engine)  │  USB    │ editor ─ overlay ─ runtime                       │
  │   ├─ USB HID keyboard / media keys  ───────────┼────────▶│   ├─ OSC (UDP)             ─▶ anything OSC       │
  │   ├─ USB MIDI  (notes, CC, PC, MSC) ───────────┼────────▶│   ├─ grandMA3 OSC /cmd     ─▶ grandMA3           │
  │   └─ usb_cdc data: JSON lines  ◀───────────────┼────────▶│   ├─ grandMA2 Telnet       ─▶ grandMA2           │
@@ -32,18 +32,18 @@ The keypad works on its own for keyboard, media and MIDI actions. The host app i
 ```bash
 python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[gui]"
-pmm            # opens the editor
+cuekeys            # opens the editor
 ```
 
 ## Set up the keypad
 
 1. Flash CircuitPython 9 or newer: [Keybow 2040](https://circuitpython.org/board/pimoroni_keybow2040/) or [Raspberry Pi Pico](https://circuitpython.org/board/raspberry_pi_pico/) for the RGB Keypad Base.
-2. Copy the contents of `pmk-macro-manager-firmware-<version>.zip` (from Releases, or built with `python scripts/build_firmware_bundle.py`) onto the `CIRCUITPY` drive. It contains the firmware and every library it needs (`pmk`, `adafruit_hid`, LED drivers).
-   - Or, if the libraries are already on the drive: **Keypad → Install / update firmware** in the editor, or `pmm install-firmware`.
+2. Copy the contents of `cuekeys-firmware-<version>.zip` (from Releases, or built with `python scripts/build_firmware_bundle.py`) onto the `CIRCUITPY` drive. It contains the firmware and every library it needs (`pmk`, `adafruit_hid`, LED drivers).
+   - Or, if the libraries are already on the drive: **Keypad → Install / update firmware** in the editor, or `cuekeys install-firmware`.
 3. **Unplug and replug the keypad once.** `boot.py` turns on the second USB serial port that the host app uses, and that only takes effect after a hard reset.
 4. Edit your layout and click **Keypad → Deploy layout to keypad** (Ctrl+D). The keypad reloads by itself.
 
-Pick your keypad in **Settings → Keypad → Device**, or pass `pmm init --device <id>`. `pmm profiles` lists the supported devices; `pmm devices` shows which profile matches the board that's plugged in. To add a keypad that isn't listed, see [docs/devices.md](docs/devices.md).
+Pick your keypad in **Settings → Keypad → Device**, or pass `cuekeys init --device <id>`. `cuekeys profiles` lists the supported devices; `cuekeys devices` shows which profile matches the board that's plugged in. To add a keypad that isn't listed, see [docs/devices.md](docs/devices.md).
 
 ## Using the editor
 
@@ -63,7 +63,7 @@ Layouts are plain JSON. Save them anywhere, keep them in git, and share them. On
 
 The overlay shows the current layer (`2/4 grandMA3`), each key's label and colour, held keys, and whether the keypad and Companion are connected. Change it in **Settings → Overlay**: opacity, corner, size, rotation, and click-through. When click-through is off, you can click keys to trigger them, scroll to change layer, and right-click for the next layer.
 
-Run only the overlay and bridge, for example on a show machine, with `pmm overlay layout.json`. It puts an icon in the system tray.
+Run only the overlay and bridge, for example on a show machine, with `cuekeys overlay layout.json`. It puts an icon in the system tray.
 
 On Linux Wayland sessions the app uses XWayland (`QT_QPA_PLATFORM=xcb`), because Wayland doesn't let windows stay on top or choose their own position.
 
@@ -105,25 +105,25 @@ On MA3 `ma` keys, `release_command` works as a flash (for example `Go+ Executor 
 Add a server under **Settings → OSC & Companion**, e.g. `{"default": {"host": "10.0.0.5", "http_port": 8000, "satellite_port": 16622}}`.
 
 - **Companion button action**: presses `page/row/column` through Companion's HTTP remote API. In `hold` mode it sends down on press and up on release.
-- **Companion layer** (layer mode `companion`): the host registers that layer with Companion as a **Satellite** surface (TCP 16622). The default size is **4×3**: the top three rows belong to Companion, and the **bottom row stays PMK's**. Choose *4×4 · whole keypad* in the layer settings if you want Companion to have all 16 keys. In the Companion region, unassigned keys go to Companion. Companion's button colour drives the key LED, and its text becomes the overlay label. Keys you assign locally still override Companion. Each Companion layer is a separate surface with a stable ID (`companion_id`).
-  - **Give the surface its own pages:** in Companion → Surfaces → your PMK surface, set *Startup Page* and turn on *Restrict pages accessible to this surface*. Companion's grid must be at least 4×3; use *Resize grid to fit* if Companion offers it.
+- **Companion layer** (layer mode `companion`): the host registers that layer with Companion as a **Satellite** surface (TCP 16622). The default size is **4×3**: the top three rows belong to Companion, and the **bottom row stays local**. Choose *4×4 · whole keypad* in the layer settings if you want Companion to have all 16 keys. In the Companion region, unassigned keys go to Companion. Companion's button colour drives the key LED, and its text becomes the overlay label. Keys you assign locally still override Companion. Each Companion layer is a separate surface with a stable ID (`companion_id`).
+  - **Give the surface its own pages:** in Companion → Surfaces → your CueKeys surface, set *Startup Page* and turn on *Restrict pages accessible to this surface*. Companion's grid must be at least 4×3; use *Resize grid to fit* if Companion offers it.
   - **Bottom-row keys** in the demo layout: layer switch, `◀ Page` / `Page ▶` (`companion_page`, which pages through the allowed pages), and `Overlay opacity` (`overlay` cycle: 90 % → 60 % → 30 % → hidden). Page keys need Companion 4.3+ (Satellite API 1.10). The overlay header shows the surface's current page (`Companion p.4`).
 
-The Satellite connection comes from the host app, so a Companion layer needs the app (or `pmm overlay` / `pmm bridge`) running.
+The Satellite connection comes from the host app, so a Companion layer needs the app (or `cuekeys overlay` / `cuekeys bridge`) running.
 
 ## Command line
 
 ```bash
-pmm                         # editor (last opened layout)
-pmm gui layout.json         # editor with a file
-pmm overlay layout.json     # overlay + bridge only
-pmm bridge layout.json -v   # headless bridge (OSC / grandMA / Companion)
-pmm init --example demo.json
-pmm validate layout.json
-pmm deploy layout.json [--drive /Volumes/CIRCUITPY]
-pmm install-firmware [layout.json] [--drive …] [--no-boot]
-pmm devices                 # detected CIRCUITPY drives (+ matching profile) and serial port
-pmm profiles                # supported keypad models, and your plugin folder
+cuekeys                         # editor (last opened layout)
+cuekeys gui layout.json         # editor with a file
+cuekeys overlay layout.json     # overlay + bridge only
+cuekeys bridge layout.json -v   # headless bridge (OSC / grandMA / Companion)
+cuekeys init --example demo.json
+cuekeys validate layout.json
+cuekeys deploy layout.json [--drive /Volumes/CIRCUITPY]
+cuekeys install-firmware [layout.json] [--drive …] [--no-boot]
+cuekeys devices                 # detected CIRCUITPY drives (+ matching profile) and serial port
+cuekeys profiles                # supported keypad models, and your plugin folder
 ```
 
 ## Keypad ↔ host protocol
@@ -154,9 +154,9 @@ pytest            # includes the firmware engine, run on desktop Python
 ruff check .
 ```
 
-- `firmware/lib/pmkdrivers/` holds the hardware drivers. `src/pmk_macro_manager/devices/` holds the device profiles that pick them.
-- `firmware/lib/pmkmacro/` is plain Python that doesn't depend on any hardware. It runs on the keypad and in the tests, with a fake clock and a fake backend.
-- `src/pmk_macro_manager/config.py` holds the schema. The editor forms and validation are generated from `ACTION_SPECS`. A test checks that the firmware and the host support the same action types.
+- `firmware/lib/cuekeys_drivers/` holds the hardware drivers. `src/cuekeys/devices/` holds the device profiles that pick them.
+- `firmware/lib/cuekeys_engine/` is plain Python that doesn't depend on any hardware. It runs on the keypad and in the tests, with a fake clock and a fake backend.
+- `src/cuekeys/config.py` holds the schema. The editor forms and validation are generated from `ACTION_SPECS`. A test checks that the firmware and the host support the same action types.
 - `firmware/config.json` is the starter layout. It is generated from `examples.py`, and a test keeps the two in sync.
 
 ### CI/CD (GitHub Actions and GitLab CI)
@@ -174,11 +174,11 @@ Notes:
 - The firmware zip build uses `GITHUB_TOKEN`, which is automatic on GitHub, to avoid API rate
   limits. Set `ADAFRUIT_BUNDLE` / `PMK_REF` to pin library versions.
 
-To release: bump `__version__` in `src/pmk_macro_manager/__init__.py`, update `CHANGELOG.md`, then tag `vX.Y.Z` and push the tag.
+To release: bump `__version__` in `src/cuekeys/__init__.py`, update `CHANGELOG.md`, then tag `vX.Y.Z` and push the tag.
 
 ## License
 
-PMK Macro Manager is **source-available**: free for **non-commercial** use under the
+CueKeys is **source-available**: free for **non-commercial** use under the
 [PolyForm Noncommercial License 1.0.0](LICENSE). **Commercial use** needs a separate commercial
 license; see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for what counts as commercial and how to
 get one. Third-party components keep their own licenses (PySide6/Qt under LGPL-3.0, pyserial under

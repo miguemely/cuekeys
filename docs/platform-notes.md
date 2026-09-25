@@ -69,7 +69,7 @@ displays are connected, it falls back to the main display.
   data=True)` gives the REPL port plus the data port the app uses.
 - **Auto-reload:** writing any file on CIRCUITPY restarts `code.py`. Deploys rely on this.
 - **Debugging:** open the console port (the *other* CDC port) at 115200. Ctrl+C then Ctrl+D
-  soft-reloads and prints tracebacks. `pmm` doesn't use the console port.
+  soft-reloads and prints tracebacks. `cuekeys` doesn't use the console port.
 - **Libraries:** the firmware zip uses Adafruit's **py** bundle (not mpy), so it works on any
   CircuitPython major version, at the cost of a little RAM.
 

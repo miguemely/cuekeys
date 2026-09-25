@@ -1,6 +1,6 @@
 # Third-party notices
 
-PMK Macro Manager's own code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+CueKeys's own code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
 The components below are **not** covered by that license. Each keeps its own license, and nothing in
 this project restricts your rights under those licenses.
 
@@ -24,9 +24,9 @@ LGPL-3.0 builds on it) and `pyserial-BSD-3-Clause.txt`.
 - The source for the exact versions used is available from the Qt Project at the links above. The
   version is recorded in the app's `About` box and in `pyproject.toml`.
 - The LGPL-3.0 lets you use PySide6/Qt for any purpose, including commercial use. This project's
-  license doesn't restrict that. It applies only to PMK Macro Manager's own code.
+  license doesn't restrict that. It applies only to CueKeys's own code.
 
-## Distributed in the firmware bundle (`pmk-macro-manager-firmware-*.zip`)
+## Distributed in the firmware bundle (`cuekeys-firmware-*.zip`)
 
 The zip contains these CircuitPython libraries unmodified, with their license files in `licenses/`
 inside the zip:

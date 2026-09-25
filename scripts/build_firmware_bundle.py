@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a drag-and-drop firmware zip for the CIRCUITPY drive.
 
-The zip contains code.py, boot.py, config.json, lib/pmkmacro, lib/pmkdrivers and
+The zip contains code.py, boot.py, config.json, lib/cuekeys_engine, lib/cuekeys_drivers and
 the third-party libraries the built-in device drivers need:
 
 * pmk                      (pimoroni/pmk-circuitpython)
@@ -47,7 +47,7 @@ LIBRARY_LICENSES = {
 
 
 def fetch(url):
-    headers = {"User-Agent": "pmk-macro-manager-build"}
+    headers = {"User-Agent": "cuekeys-build"}
     token = os.environ.get("GITHUB_TOKEN")
     if token and "api.github.com" in url:
         headers["Authorization"] = "Bearer " + token
@@ -56,7 +56,7 @@ def fetch(url):
 
 
 def version():
-    text = (ROOT / "src" / "pmk_macro_manager" / "__init__.py").read_text()
+    text = (ROOT / "src" / "cuekeys" / "__init__.py").read_text()
     return re.search(r'__version__ = "([^"]+)"', text).group(1)
 
 
@@ -110,7 +110,7 @@ def main():
         fw = ROOT / "firmware"
         for name in ("code.py", "boot.py", "config.json"):
             shutil.copy(fw / name, stage / name)
-        for package in ("pmkmacro", "pmkdrivers"):
+        for package in ("cuekeys_engine", "cuekeys_drivers"):
             shutil.copytree(fw / "lib" / package, lib / package,
                             ignore=shutil.ignore_patterns("__pycache__"))
 
@@ -131,7 +131,7 @@ def main():
 
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
-        target = out / ("pmk-macro-manager-firmware-%s.zip" % version())
+        target = out / ("cuekeys-firmware-%s.zip" % version())
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zf:
             for path in sorted(stage.rglob("*")):
                 if path.is_file():

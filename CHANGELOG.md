@@ -17,6 +17,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - issue and pull request templates, Dependabot, and `SECURITY.md`.
 
 ### Changed
+- **Renamed from "PMK Macro Manager" to CueKeys.** The project supports much more than Pimoroni
+  hardware, and "PMK" is the name of Pimoroni's library.
+  - The Python package and command are now `cuekeys` (formerly `pmk_macro_manager` and `pmm`).
+  - The firmware folders are now `lib/cuekeys_engine` and `lib/cuekeys_drivers`; installing the
+    firmware removes the old `lib/pmkmacro` and `lib/pmkdrivers`.
+  - Other renames: `$CUEKEYS_DEVICE_PATH`, the `cuekeys.devices` entry point, and the repo
+    `miguemely/cuekeys`.
+  - Saved app settings are migrated, and the old plugin folder is still searched.
+  - Companion surface ids already in layouts are kept; new ones use `ck-…`.
+  - The `pmk_*` drivers keep their names, because they wrap Pimoroni's `pmk` library.
 - **Licensing:** the project is now source-available under the **PolyForm Noncommercial License
   1.0.0**, with separate commercial licenses (`COMMERCIAL-LICENSE.md`). The earlier MIT markings are
   replaced.
@@ -37,7 +47,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - built-in profiles for the Keybow 2040 (tested), the Pico RGB Keypad Base, and the Adafruit
     MacroPad RP2040;
   - generic `keypad_keys` / `keypad_matrix` drivers with NeoPixel support;
-  - a plugin folder, `$PMM_DEVICE_PATH`, and an entry point for adding more.
+  - a plugin folder, `$CUEKEYS_DEVICE_PATH`, and an entry point for adding more.
 - **LED colour correction:** gamma and per-channel white balance, with a live calibration dialog.
 - **Desktop app (PySide6):**
   - a layout editor with a macro recorder;
@@ -46,8 +56,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - deploying layouts and installing firmware to the CIRCUITPY drive.
 - **Bridges:** OSC, grandMA3 (OSC `/cmd`), grandMA2 (Telnet), and Bitfocus Companion:
   - HTTP button presses;
-  - Satellite surfaces sized to the keypad, with the bottom row kept for PMK's own keys;
+  - Satellite surfaces sized to the keypad, with the bottom row kept for local keys;
   - page changes, page names, and location badges.
-- **`pmm` CLI:** `gui`, `overlay`, `bridge`, `validate`, `deploy`, `install-firmware`, `devices`,
+- **`cuekeys` CLI:** `gui`, `overlay`, `bridge`, `validate`, `deploy`, `install-firmware`, `devices`,
   `profiles`, `init`.
 - **GitLab CI/CD:** lint, a test matrix, the wheel, the firmware zip, desktop apps, and releases.

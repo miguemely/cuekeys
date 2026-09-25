@@ -1,6 +1,6 @@
 # Bitfocus Companion integration
 
-Code: `src/pmk_macro_manager/companion.py` (HTTP and Satellite client), and `runtime.py` (mapping,
+Code: `src/cuekeys/companion.py` (HTTP and Satellite client), and `runtime.py` (mapping,
 state, events). Tested against Companion **4.2.0** (Satellite API 1.9) and **5.0.6** (API 1.12).
 
 ## Two mechanisms
@@ -19,19 +19,19 @@ state, events). Tested against Companion **4.2.0** (Satellite API 1.9) and **5.0
 ```
 ← BEGIN CompanionVersion="5.0.6+…" ApiVersion="1.12.0"
 ← CAPS SUBSCRIPTIONS=0 NONSQUARE=1 BITMAP_FORMATS="rgb,png,webp"     (API ≥ 1.10 only)
-→ ADD-DEVICE DEVICEID=pmk-example PRODUCT_NAME="PMK Companion" KEYS_TOTAL=12 KEYS_PER_ROW=4
+→ ADD-DEVICE DEVICEID=cuekeys-example PRODUCT_NAME="CueKeys Companion" KEYS_TOTAL=12 KEYS_PER_ROW=4
              BITMAPS=0 COLORS=hex TEXT=true TEXT_STYLE=true CAN_CHANGE_PAGE=true
-← ADD-DEVICE OK DEVICEID="pmk-example"
-← KEY-STATE DEVICEID="pmk-example" KEY=0 LOCATION="4/0/0" TYPE="BUTTON" COLOR="#ff0000"
+← ADD-DEVICE OK DEVICEID="cuekeys-example"
+← KEY-STATE DEVICEID="cuekeys-example" KEY=0 LOCATION="4/0/0" TYPE="BUTTON" COLOR="#ff0000"
             TEXTCOLOR="#ffffff" TEXT="<base64>" FONT_SIZE="auto" PRESSED=0
-→ KEY-PRESS DEVICEID=pmk-example KEY=0 PRESSED=true
-→ CHANGE-PAGE DEVICEID=pmk-example DIRECTION=1                        (API ≥ 1.10)
+→ KEY-PRESS DEVICEID=cuekeys-example KEY=0 PRESSED=true
+→ CHANGE-PAGE DEVICEID=cuekeys-example DIRECTION=1                        (API ≥ 1.10)
 ↔ PING x / PONG x                                                       (every 2 s)
 ```
 
 **Surface shape.** One surface per Companion layer: `companion_rows × width` keys, where the width
 is the device profile's display width at the current rotation. By default every row except the
-bottom one goes to Companion, so the bottom row stays "PMK's own", e.g. layer, page and overlay keys.
+bottom one goes to Companion, so the bottom row stays local, e.g. layer, page and overlay keys.
 Keys you assign locally inside the Companion region override Companion.
 
 **Key mapping.** Satellite keys are numbered left to right, top to bottom.
@@ -39,8 +39,8 @@ Keys you assign locally inside the Companion region override Companion.
 between them and keypad key numbers.
 
 **Surface ids.** The id is `layer.companion_id`. The editor gives each new Companion layer a random
-`pmk-xxxxxxxx`, so the id survives reordering and renaming. If a layer has no id, it falls back to
-`pmk-<hostname>-l<index>`.
+`ck-xxxxxxxx`, so the id survives reordering and renaming. If a layer has no id, it falls back to
+`cuekeys-<hostname>-l<index>`.
 
 **State kept per key:** `color`, `text`, `text_color`, `type` (BUTTON / PAGEUP / PAGEDOWN / PAGENUM),
 `pressed`, `location` and `page`, plus `page_name` added by the runtime.
@@ -72,11 +72,11 @@ between them and keypad key numbers.
 ## Recommended Companion setup
 
 1. Settings → OSC & Companion: `{"default": {"host": "…", "http_port": 8000, "satellite_port": 16622}}`.
-2. Give the PMK surface its own pages. In Pages, add pages such as "PMK 1" and "PMK 2" at the end,
-   so existing page numbers don't shift. Then, in Surfaces → your PMK surface:
+2. Give the CueKeys surface its own pages. In Pages, add pages such as "CueKeys 1" and "CueKeys 2" at the end,
+   so existing page numbers don't shift. Then, in Surfaces → your CueKeys surface:
    - turn off *Use Last Page At Startup*;
-   - set *Startup Page* to your first PMK page;
-   - turn on *Restrict pages accessible to this surface* and pick the PMK pages.
+   - set *Startup Page* to your first CueKeys page;
+   - turn on *Restrict pages accessible to this surface* and pick the CueKeys pages.
 
    The keypad's `companion_page` keys (◀ Page / Page ▶) then cycle through only those pages.
 3. Several Companion layers means several independent surfaces, and each can have its own pages.

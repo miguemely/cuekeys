@@ -37,7 +37,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/build_firmware_bundle.py --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-dist
           path: dist/
@@ -63,7 +63,7 @@ jobs:
             libegl1 libgl1 libglib2.0-0 libxkbcommon0 libfontconfig1 libdbus-1-3 binutils
       - run: pip install -e ".[build]"
       - run: python packaging/build_app.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: app-${{ matrix.os }}
           path: dist/cuekeys-*.zip

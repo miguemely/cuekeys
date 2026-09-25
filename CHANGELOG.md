@@ -5,75 +5,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- **Live colour preview:** layer and key colour changes show on the keypad as you make them (host
-  `colors` message; firmware update needed). **Deploy** is marked • while changes aren't deployed.
-- **Easier key colours:** right-click a key on the editor's pad for a colour menu, and one-click
-  colour swatches under the key and layer Colour fields.
-- **SBOMs:** every release app zip and the firmware bundle come with a CycloneDX 1.5 SBOM
-  (`*.cdx.json`): exact versions, licences and package URLs of what's shipped, including Qt, the
-  Python runtime and the PyInstaller bootloader for the apps, and the Adafruit/Pimoroni libraries (with
-  the pmk commit) for the firmware. `scripts/sbom.py`; checked in the release dry run.
-- **Several keypads at once.** Keypads are identified by their hardware id (the RP2040 unique id,
-  also their USB serial number), found automatically, and followed when re-plugged.
-  - A keypad picker in the editor; each keypad has its own layout (keypads can share a file), and
-    deploy, firmware install and LED calibration act on the selected keypad.
-  - One overlay per keypad, stacked and labelled with the keypad's name.
-  - Per-keypad name, layout and LED calibration in `keypads.json`; `cuekeys keypads`
-    (list / rename / assign / forget) and `--keypad` for `deploy` and `install-firmware`.
-  - The firmware reports its id in `hello` (`uid`).
-- **Overlay on every macOS Space and over full-screen apps.** It's made a non-activating panel with
-  all-Spaces collection behaviour. Setting: Overlay → "All desktops + full-screen apps".
-- **Overlay display choice:** main display, all displays, the display with the mouse pointer, or
-  selected displays (`overlay.screens`). It follows displays being plugged in and unplugged.
-- **Developer documentation:** `AGENTS.md`, `CONTRIBUTING.md`, and `docs/` (architecture, protocol,
-  extending, Companion, platform notes, roadmap).
-- **GitHub support:**
-  - GitHub Actions CI and a release workflow, alongside GitLab CI;
-  - issue and pull request templates, Dependabot (grouped updates), and `SECURITY.md`;
-  - a release dry run: starting the release workflow by hand builds, smoke-tests and collects every
-    release asset without publishing.
+## [0.1.0] - 2026-09-25
 
-- **More desktop builds:**
-  - macOS **universal2** (Intel and Apple Silicon);
-  - Windows **x64 and ARM64**;
-  - Linux **x64 and ARM64**. The ARM64 build targets Raspberry Pi 4/5 on 64-bit Raspberry Pi OS
-    trixie or newer.
-  - All apps are built on the newest GitHub runner images with the newest PySide6/Qt. The Linux apps
-    therefore need a current distribution (glibc 2.39+ today: Ubuntu 24.04+, Debian 13+, Raspberry
-    Pi OS trixie+); on older ones, install with `pip install "cuekeys[gui]"` instead.
-  - Each build is smoke-tested in CI before release.
-
-### Fixed
-- Colour changes in the editor (and on the overlay) didn't reach the keypad until you deployed.
-
-### Changed
-- **Companion surface ids include the keypad:** `ck-<keypad>-<layer>` (e.g. `ck-e35b8c2b-example`),
-  named `CueKeys <keypad> · <layer>`. Existing surfaces show up under the new id once; set its
-  startup page and page permissions again in Companion and forget the old one.
-- **Smaller desktop apps:**
-  - depend on `PySide6-Essentials` instead of the full `PySide6`;
-  - the PyInstaller spec drops unused Qt modules (QtPdf, QtQuick/QtQml, QtNetwork, QtSvg, the
-    virtual keyboard, translations) and SSL.
-  - Result: the macOS app went from 99 MB to 61 MB (a 34 MB zip is now 21 MB).
-- **Renamed from "PMK Macro Manager" to CueKeys.** The project supports much more than Pimoroni
-  hardware, and "PMK" is the name of Pimoroni's library.
-  - The Python package and command are now `cuekeys` (formerly `pmk_macro_manager` and `pmm`).
-  - The firmware folders are now `lib/cuekeys_engine` and `lib/cuekeys_drivers`; installing the
-    firmware removes the old `lib/pmkmacro` and `lib/pmkdrivers`.
-  - Other renames: `$CUEKEYS_DEVICE_PATH`, the `cuekeys.devices` entry point, and the repo
-    `miguemely/cuekeys`.
-  - Saved app settings are migrated, and the old plugin folder is still searched.
-  - Companion surface ids already in layouts are kept; new ones use `ck-…`.
-  - The `pmk_*` drivers keep their names, because they wrap Pimoroni's `pmk` library.
-- **Licensing:** the project is now source-available under the **PolyForm Noncommercial License
-  1.0.0**, with separate commercial licenses (`COMMERCIAL-LICENSE.md`). The earlier MIT markings are
-  replaced.
-  - Third-party licenses are documented in `THIRD_PARTY_NOTICES.md` and `licenses/`.
-  - The firmware zip and desktop apps now ship the relevant license texts.
-  - The About box shows the license and the PySide6/Qt versions.
-
-## [0.1.0]: first development version
+First release.
 
 ### Added
 - **CircuitPython firmware:**
@@ -100,3 +34,66 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - **`cuekeys` CLI:** `gui`, `overlay`, `bridge`, `validate`, `deploy`, `install-firmware`, `devices`,
   `profiles`, `init`.
 - **GitLab CI/CD:** lint, a test matrix, the wheel, the firmware zip, desktop apps, and releases.
+- **Live colour preview:** layer and key colour changes show on the keypad as you make them (host
+  `colors` message). **Deploy** is marked • while changes aren't deployed.
+- **Easier key colours:** right-click a key on the editor's pad for a colour menu, and one-click
+  colour swatches under the key and layer Colour fields.
+- **SBOMs:** every release app zip and the firmware bundle come with a CycloneDX 1.5 SBOM
+  (`*.cdx.json`): exact versions, licences and package URLs of what's shipped, including Qt, the
+  Python runtime and the PyInstaller bootloader for the apps, and the Adafruit/Pimoroni libraries (with
+  the pmk commit) for the firmware. `scripts/sbom.py`; checked in the release dry run.
+- **Several keypads at once.** Keypads are identified by their hardware id (the RP2040 unique id,
+  also their USB serial number), found automatically, and followed when re-plugged.
+  - A keypad picker in the editor; each keypad has its own layout (keypads can share a file), and
+    deploy, firmware install and LED calibration act on the selected keypad.
+  - One overlay per keypad, stacked and labelled with the keypad's name.
+  - Per-keypad name, layout and LED calibration in `keypads.json`; `cuekeys keypads`
+    (list / rename / assign / forget) and `--keypad` for `deploy` and `install-firmware`.
+  - The firmware reports its id in `hello` (`uid`).
+- **Overlay on every macOS Space and over full-screen apps.** It's made a non-activating panel with
+  all-Spaces collection behaviour. Setting: Overlay → "All desktops + full-screen apps".
+- **Overlay display choice:** main display, all displays, the display with the mouse pointer, or
+  selected displays (`overlay.screens`). It follows displays being plugged in and unplugged.
+- **Developer documentation:** `AGENTS.md`, `CONTRIBUTING.md`, and `docs/` (architecture, protocol,
+  extending, Companion, platform notes, roadmap).
+- **GitHub support:**
+  - GitHub Actions CI and a release workflow, alongside GitLab CI;
+  - issue and pull request templates, Dependabot (grouped updates), and `SECURITY.md`;
+  - a release dry run: starting the release workflow by hand builds, smoke-tests and collects every
+    release asset without publishing.
+- **Desktop apps for every platform:**
+  - macOS **universal2** (Intel and Apple Silicon);
+  - Windows **x64 and ARM64**;
+  - Linux **x64 and ARM64**. The ARM64 build targets Raspberry Pi 4/5 on 64-bit Raspberry Pi OS
+    trixie or newer.
+  - All apps are built on the newest GitHub runner images with the newest PySide6/Qt. The Linux apps
+    therefore need a current distribution (glibc 2.39+ today: Ubuntu 24.04+, Debian 13+, Raspberry
+    Pi OS trixie+); on older ones, install with `pip install "cuekeys[gui]"` instead.
+  - Each build is smoke-tested in CI before release.
+  - Trimmed: `PySide6-Essentials` instead of the full `PySide6`, and the PyInstaller spec drops
+    unused Qt modules (QtPdf, QtQuick/QtQml, QtNetwork, QtSvg, the virtual keyboard, translations)
+    and SSL.
+
+### Notes for anyone who ran development builds
+- **Companion surface ids include the keypad:** `ck-<keypad>-<layer>` (e.g. `ck-e35b8c2b-example`),
+  named `CueKeys <keypad> · <layer>`. Existing surfaces show up under the new id once; set its
+  startup page and page permissions again in Companion and forget the old one.
+- **Renamed from "PMK Macro Manager" to CueKeys.** The project supports much more than Pimoroni
+  hardware, and "PMK" is the name of Pimoroni's library.
+  - The Python package and command are now `cuekeys` (formerly `pmk_macro_manager` and `pmm`).
+  - The firmware folders are now `lib/cuekeys_engine` and `lib/cuekeys_drivers`; installing the
+    firmware removes the old `lib/pmkmacro` and `lib/pmkdrivers`.
+  - Other renames: `$CUEKEYS_DEVICE_PATH`, the `cuekeys.devices` entry point, and the repo
+    `miguemely/cuekeys`.
+  - Saved app settings are migrated, and the old plugin folder is still searched.
+  - Companion surface ids already in layouts are kept; new ones use `ck-…`.
+  - The `pmk_*` drivers keep their names, because they wrap Pimoroni's `pmk` library.
+- **Licensing:** the project is now source-available under the **PolyForm Noncommercial License
+  1.0.0**, with separate commercial licenses (`COMMERCIAL-LICENSE.md`). The earlier MIT markings are
+  replaced.
+  - Third-party licenses are documented in `THIRD_PARTY_NOTICES.md` and `licenses/`.
+  - The firmware zip and desktop apps now ship the relevant license texts.
+  - The About box shows the license and the PySide6/Qt versions.
+
+[Unreleased]: https://github.com/miguemely/cuekeys/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/miguemely/cuekeys/releases/tag/v0.1.0

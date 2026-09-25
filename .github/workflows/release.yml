@@ -205,9 +205,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # This version's CHANGELOG section, then the standard footer.
+          awk -v v="${GITHUB_REF_NAME#v}" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on && /^\[[^]]+\]: http/ { next }
+            on { print }' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "no CHANGELOG section for ${GITHUB_REF_NAME}"; exit 1; }
+          printf '\n---\n%s\n' "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive, each with a CycloneDX SBOM (.cdx.json). Free for non-commercial use (PolyForm Noncommercial 1.0.0); commercial use needs a license - see COMMERCIAL-LICENSE.md." >> notes.md
           gh release create "${GITHUB_REF_NAME}" artifacts/* \
             --title "CueKeys ${GITHUB_REF_NAME}" \
-            --notes "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive, each with a CycloneDX SBOM (.cdx.json). See CHANGELOG.md. Free for non-commercial use (PolyForm Noncommercial 1.0.0); commercial use needs a license - see COMMERCIAL-LICENSE.md."
+            --notes-file notes.md
 
   # Optional: set the repository variable PUBLISH_PYPI=true and configure PyPI
   # "trusted publishing" for this repo and the `pypi` environment. Tags only.

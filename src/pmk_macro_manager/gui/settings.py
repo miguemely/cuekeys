@@ -3,6 +3,7 @@
 import copy
 import json
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -12,6 +13,8 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPlainTextEdit,
     QSpinBox,
@@ -42,6 +45,9 @@ OVERLAY_FIELDS = [
     ("margin", "Margin (px)", "int", (0, 500)),
     ("key_size", "Key size (px)", "int", (24, 200)),
     ("click_through", "Click-through (ignore mouse)", "bool", None),
+    ("all_spaces", "All desktops + full-screen apps", "bool",
+     "macOS: keep the overlay on every Space (Ctrl+←/→) and above full-screen apps"),
+    ("screens", "Displays", "screens", None),
     ("rotation", "Keypad rotation", "choice", ("0", "90", "180", "270")),
 ]
 MA3_FIELDS = [
@@ -57,13 +63,61 @@ MA2_FIELDS = [
 ]
 
 
+class _ScreenPicker(QWidget):
+    """Main display / all / mouse / a chosen set of displays."""
+
+    MODES = [("Main display", "primary"), ("All displays", "all"),
+             ("Display with the mouse pointer", "mouse"), ("Selected displays", "list")]
+
+    def __init__(self, value):
+        super().__init__()
+        from .overlay import screen_names
+
+        self.mode = QComboBox()
+        for label, data in self.MODES:
+            self.mode.addItem(label, data)
+        self.list = QListWidget()
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.list.setTextElideMode(Qt.ElideMiddle)
+        chosen = value if isinstance(value, list) else []
+        names = list(screen_names().values())
+        for name in names + [n for n in chosen if n not in names]:
+            item = QListWidgetItem(name if name in names else "%s (not connected)" % name)
+            item.setData(Qt.UserRole, name)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if name in chosen else Qt.Unchecked)
+            self.list.addItem(item)
+        self.list.setFixedHeight(min(6, max(1, self.list.count())) * 28 + 10)
+        mode = "list" if isinstance(value, list) else (value or "primary")
+        self.mode.setCurrentIndex(max(0, self.mode.findData(mode)))
+        self.mode.currentIndexChanged.connect(self._sync)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.mode)
+        layout.addWidget(self.list)
+        self._sync()
+
+    def _sync(self):
+        self.list.setVisible(self.mode.currentData() == "list")
+
+    def value(self):
+        mode = self.mode.currentData()
+        if mode != "list":
+            return mode
+        chosen = [self.list.item(i).data(Qt.UserRole) for i in range(self.list.count())
+                  if self.list.item(i).checkState() == Qt.Checked]
+        return chosen or "primary"
+
+
 class _Section:
     def __init__(self, data, fields, form):
         self.data = data
         self.widgets = {}
         for key, label, kind, extra in fields:
             value = data.get(key)
-            if kind == "profile":
+            if kind == "screens":
+                w = _ScreenPicker(value)
+            elif kind == "profile":
                 w = QComboBox()
                 for profile in sorted(devices.all_profiles().values(), key=lambda p: p.name):
                     label = "%s  (%d×%d%s)" % (profile.name, profile.cols, profile.rows,
@@ -77,6 +131,8 @@ class _Section:
             elif kind == "bool":
                 w = QCheckBox()
                 w.setChecked(bool(value))
+                if extra:
+                    w.setToolTip(extra)
             elif kind == "int":
                 w = QSpinBox()
                 w.setRange(*extra)
@@ -97,7 +153,9 @@ class _Section:
 
     def apply(self):
         for key, (kind, w) in self.widgets.items():
-            if kind == "profile":
+            if kind == "screens":
+                self.data[key] = w.value()
+            elif kind == "profile":
                 self.data[key] = w.currentData()
                 self.data.pop("hardware", None)
             elif kind == "choice":

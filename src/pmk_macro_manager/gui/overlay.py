@@ -1,7 +1,14 @@
-"""Floating, semi-transparent, always-on-top reference of the current layer."""
+"""Floating, semi-transparent, always-on-top reference of the current layer.
 
-from PySide6.QtCore import QPoint, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
+``Overlay`` manages one ``OverlayWindow`` per chosen display (main display,
+all displays, selected displays, or whichever display the mouse is on) and
+keeps their opacity and visibility in sync.
+"""
+
+import sys
+
+from PySide6.QtCore import QObject, QPoint, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ..config import DEFAULT_OVERLAY_LEVELS
@@ -9,19 +16,160 @@ from ..devices import profile_for
 from .common import cell_badge, cell_content, paint_key, to_qcolor
 from .theme import T
 
+SCREEN_MODES = ("primary", "all", "mouse")  # or a list of display names
 HEADER = 30
 MIN_WIDTH = 230  # room for the header on narrow pads
 PAD = 10
 GAP = 5
 
 
-class OverlayWindow(QWidget):
-    # Emitted when a keypad overlay action shows/hides the window.
+def screen_names(screens=None):
+    """Stable, unique names for displays (identical monitors get " #2", " #3" ...)."""
+    screens = QGuiApplication.screens() if screens is None else screens
+    names, seen = {}, {}
+    for screen in screens:
+        base = screen.name() or "Display"
+        seen[base] = seen.get(base, 0) + 1
+        names[screen] = base if seen[base] == 1 else "%s #%d" % (base, seen[base])
+    return names
+
+
+class Overlay(QObject):
+    """All overlay windows; the editor and overlay-only mode talk to this."""
+
     visibility_changed = Signal(bool)
 
     def __init__(self, runtime, signals):
+        super().__init__()
+        self.runtime = runtime
+        self.signals = signals
+        self.windows = {}          # QScreen -> OverlayWindow
+        self._visible = False
+        self._opacity = float(self.settings.get("opacity", 0.8))
+        signals.event.connect(self._on_event)
+        app = QGuiApplication.instance()
+        app.screenAdded.connect(lambda _s: self._rebuild())
+        app.screenRemoved.connect(lambda _s: self._rebuild())
+        app.primaryScreenChanged.connect(lambda _s: self._rebuild())
+        self._mouse_timer = QTimer(self)
+        self._mouse_timer.setInterval(400)
+        self._mouse_timer.timeout.connect(self._follow_mouse)
+
+    @property
+    def settings(self):
+        return self.runtime.config.get("overlay", {})
+
+    # ------------------------------------------------------------- displays
+    def target_screens(self):
+        mode = self.settings.get("screens", "primary")
+        screens = QGuiApplication.screens()
+        primary = QGuiApplication.primaryScreen()
+        if mode == "all":
+            return list(screens)
+        if mode == "mouse":
+            return [QGuiApplication.screenAt(QCursor.pos()) or primary]
+        if isinstance(mode, list):
+            names = screen_names(screens)
+            chosen = [s for s in screens if names[s] in mode]
+            if chosen:
+                return chosen
+        return [primary] if primary is not None else []
+
+    def _rebuild(self):
+        targets = [s for s in self.target_screens() if s is not None]
+        for screen in list(self.windows):
+            if screen not in targets:
+                self.windows.pop(screen).close()
+        for screen in targets:
+            if screen not in self.windows:
+                self.windows[screen] = OverlayWindow(self.runtime, self.signals, screen)
+        for window in self.windows.values():
+            window.apply_settings(self._opacity)
+            window.setVisible(self._visible)
+        if self.settings.get("screens") == "mouse":
+            self._mouse_timer.start()
+        else:
+            self._mouse_timer.stop()
+
+    def _follow_mouse(self):
+        screen = QGuiApplication.screenAt(QCursor.pos())
+        if screen is not None and screen not in self.windows:
+            self._rebuild()
+
+    # ------------------------------------------------------------- control
+    def apply_settings(self):
+        self._opacity = float(self.settings.get("opacity", 0.8))
+        self._rebuild()
+
+    def setVisible(self, visible):
+        self._visible = bool(visible)
+        if not self.windows:
+            self._rebuild()
+        for window in self.windows.values():
+            window.setWindowOpacity(self._opacity)
+            window.setVisible(self._visible)
+
+    def show(self):
+        self.setVisible(True)
+
+    def hide(self):
+        self.setVisible(False)
+
+    def isVisible(self):
+        return self._visible
+
+    def windowOpacity(self):
+        return self._opacity
+
+    def update(self):
+        for window in self.windows.values():
+            window.update()
+
+    def close(self):
+        self._mouse_timer.stop()
+        for window in self.windows.values():
+            window.close()
+        self.windows.clear()
+
+    def grab(self):
+        """Image of the first overlay window (tests, screenshots)."""
+        if not self.windows:
+            self._rebuild()
+        return next(iter(self.windows.values())).grab()
+
+    def run_command(self, op, levels=None):
+        """Handle an ``overlay`` action from the keypad (cycle / toggle / show / hide)."""
+        levels = [float(v) for v in (levels or DEFAULT_OVERLAY_LEVELS)]
+        if op == "toggle":
+            visible = not self._visible
+        elif op in ("show", "hide"):
+            visible = op == "show"
+        else:
+            current = self._opacity if self._visible else 0.0
+            index = min(range(len(levels)), key=lambda i: abs(levels[i] - current))
+            level = levels[(index + 1) % len(levels)]
+            visible = level > 0
+            if visible:
+                self._opacity = level
+        if visible and self._opacity <= 0.01:
+            self._opacity = float(self.settings.get("opacity", 0.8))
+        changed = visible != self._visible
+        self.setVisible(visible)
+        if changed:
+            self.visibility_changed.emit(visible)
+
+    def _on_event(self, name, data):
+        if name == "overlay":
+            self.run_command(data.get("op", "cycle"), data.get("levels"))
+
+
+class OverlayWindow(QWidget):
+    """The overlay on one display."""
+
+    def __init__(self, runtime, signals, screen=None):
         super().__init__(None)
         self.runtime = runtime
+        self.target_screen = screen
         self.pressed = set()
         self.setWindowTitle("PMK overlay")
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -30,7 +178,6 @@ class OverlayWindow(QWidget):
         self.setAttribute(Qt.WA_MacAlwaysShowToolWindow)
         signals.event.connect(self._on_event)
         self.apply_settings()
-        screen = QGuiApplication.primaryScreen()
         if screen is not None:
             screen.availableGeometryChanged.connect(lambda _geo: self.reposition())
 
@@ -39,7 +186,7 @@ class OverlayWindow(QWidget):
     def settings(self):
         return self.runtime.config.get("overlay", {})
 
-    def apply_settings(self):
+    def apply_settings(self, opacity=None):
         s = self.settings
         flags = (Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                  | Qt.WindowDoesNotAcceptFocus)
@@ -47,7 +194,7 @@ class OverlayWindow(QWidget):
             flags |= Qt.WindowTransparentForInput
         visible = self.isVisible()
         self.setWindowFlags(flags)
-        self.setWindowOpacity(float(s.get("opacity", 0.8)))
+        self.setWindowOpacity(float(s.get("opacity", 0.8)) if opacity is None else opacity)
         size = int(s.get("key_size", 64))
         rows, cols = self._grid_size()
         grid_width = cols * size + (cols - 1) * GAP
@@ -59,8 +206,16 @@ class OverlayWindow(QWidget):
             self.show()
         self.update()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Qt recreates the native window when flags change, so re-apply on every show.
+        if sys.platform == "darwin":
+            from . import macos
+
+            macos.show_on_all_spaces(self, bool(self.settings.get("all_spaces", True)))
+
     def reposition(self):
-        screen = QGuiApplication.primaryScreen()
+        screen = self.target_screen or QGuiApplication.primaryScreen()
         if screen is None:
             return
         geo = screen.availableGeometry()
@@ -71,30 +226,7 @@ class OverlayWindow(QWidget):
         self.move(QPoint(x, y))
 
     # ----------------------------------------------------------- events
-    def run_command(self, op, levels=None):
-        """Handle an ``overlay`` action from the keypad (cycle / toggle / show / hide)."""
-        levels = [float(v) for v in (levels or DEFAULT_OVERLAY_LEVELS)]
-        if op == "toggle":
-            visible = not self.isVisible()
-        elif op in ("show", "hide"):
-            visible = op == "show"
-        else:
-            current = self.windowOpacity() if self.isVisible() else 0.0
-            index = min(range(len(levels)), key=lambda i: abs(levels[i] - current))
-            level = levels[(index + 1) % len(levels)]
-            visible = level > 0
-            if visible:
-                self.setWindowOpacity(level)
-        if visible and self.windowOpacity() <= 0.01:
-            self.setWindowOpacity(float(self.settings.get("opacity", 0.8)))
-        if visible != self.isVisible():
-            self.setVisible(visible)
-            self.visibility_changed.emit(visible)
-
     def _on_event(self, name, data):
-        if name == "overlay":
-            self.run_command(data.get("op", "cycle"), data.get("levels"))
-            return
         if name == "key":
             (self.pressed.add if data["pressed"] else self.pressed.discard)(data["key"])
         elif name == "status" and not data.get("connected"):

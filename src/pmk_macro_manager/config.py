@@ -240,6 +240,8 @@ def default_config():
             "margin": 24,
             "key_size": 64,
             "click_through": True,
+            "all_spaces": True,
+            "screens": "primary",  # "primary", "all", "mouse", or a list of display names
             "rotation": 0,
         },
     }

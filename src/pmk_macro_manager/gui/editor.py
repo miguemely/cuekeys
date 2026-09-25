@@ -32,7 +32,7 @@ from .. import __version__, device, devices
 from .. import config as cfg
 from .actions import ActionListEditor
 from .common import cell_badge, cell_content, paint_key, text_color_for, to_qcolor
-from .overlay import OverlayWindow
+from .overlay import Overlay
 from .settings import SettingsDialog
 from .theme import T, repolish
 
@@ -267,7 +267,7 @@ class MainWindow(QMainWindow):
         self.key = 0
         self.pressed = set()
         self.settings = QSettings("pmk-macro-manager", "PMK Macro Manager")
-        self.overlay = OverlayWindow(runtime, signals)
+        self.overlay = Overlay(runtime, signals)
         self.overlay.visibility_changed.connect(lambda on: self.overlay_action.setChecked(on))
 
         self._build_menus()

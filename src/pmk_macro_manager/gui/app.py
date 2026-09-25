@@ -74,12 +74,12 @@ def run_overlay(path=None, port=None):
 
     from ..runtime import Runtime
     from .common import RuntimeSignals
-    from .overlay import OverlayWindow
+    from .overlay import Overlay
 
     config, path = _load_config(path)
     runtime = Runtime(config, port=port)
     signals = RuntimeSignals(runtime)
-    overlay = OverlayWindow(runtime, signals)
+    overlay = Overlay(runtime, signals)
     runtime.start()
     overlay.show()
 

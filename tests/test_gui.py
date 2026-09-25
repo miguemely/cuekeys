@@ -3,6 +3,8 @@ import pytest
 pytest.importorskip("PySide6")
 pytest.importorskip("pytestqt")
 
+from PySide6.QtGui import QGuiApplication  # noqa: E402
+
 from pmk_macro_manager.examples import example_config  # noqa: E402
 from pmk_macro_manager.runtime import Runtime  # noqa: E402
 
@@ -74,8 +76,9 @@ def test_action_form_updates_action(window):
 
 def test_overlay_cycle_levels(window, qtbot):
     overlay = window.overlay
+    window.config["overlay"]["opacity"] = 0.9
+    overlay.apply_settings()
     overlay.show()
-    overlay.setWindowOpacity(0.9)
     seen = []
     for _ in range(4):
         overlay.run_command("cycle")
@@ -140,3 +143,60 @@ def test_led_calibration_dialog(window):
     dialog.done(QDialog.Rejected)                                     # cancel restores saved values
     assert link.sent[-1] == {"t": "led_cal", "gamma": 2.2, "balance": [0.6, 1.0, 1.0]}
     assert window.config["device"]["led_balance"] == [0.6, 1.0, 1.0]
+
+
+
+def test_overlay_display_selection(window, monkeypatch):
+    from PySide6.QtGui import QGuiApplication
+
+    from pmk_macro_manager.gui.overlay import screen_names
+
+    class FakeScreen:
+        def __init__(self, name):
+            self._name = name
+
+        def name(self):
+            return name_of[self]
+
+    a, b, c = FakeScreen("Built-in"), FakeScreen("DELL"), FakeScreen("DELL")
+    name_of = {a: "Built-in", b: "DELL", c: "DELL"}
+    assert list(screen_names([a, b, c]).values()) == ["Built-in", "DELL", "DELL #2"]
+
+    monkeypatch.setattr(QGuiApplication, "screens", staticmethod(lambda: [a, b, c]))
+    monkeypatch.setattr(QGuiApplication, "primaryScreen", staticmethod(lambda: a))
+    overlay = window.overlay
+    settings = window.config["overlay"]
+    settings["screens"] = "primary"
+    assert overlay.target_screens() == [a]
+    settings["screens"] = "all"
+    assert overlay.target_screens() == [a, b, c]
+    settings["screens"] = ["DELL #2", "Built-in"]
+    assert overlay.target_screens() == [a, c]
+    settings["screens"] = ["Unplugged monitor"]
+    assert overlay.target_screens() == [a]        # falls back to the main display
+
+
+def test_overlay_one_window_per_display(window):
+    overlay = window.overlay
+    window.config["overlay"]["screens"] = "all"
+    overlay.apply_settings()
+    overlay.show()
+    assert len(overlay.windows) == len(QGuiApplication.screens())
+    assert all(w.isVisible() for w in overlay.windows.values())
+    overlay.run_command("hide")
+    assert not any(w.isVisible() for w in overlay.windows.values())
+
+
+def test_screen_picker_round_trip():
+    from PySide6.QtCore import Qt
+
+    from pmk_macro_manager.gui.settings import _ScreenPicker
+
+    assert _ScreenPicker("all").value() == "all"
+    picker = _ScreenPicker(["Old monitor"])                 # saved but not connected
+    labels = [picker.list.item(i).text() for i in range(picker.list.count())]
+    assert "Old monitor (not connected)" in labels
+    assert picker.value() == ["Old monitor"]
+    for i in range(picker.list.count()):
+        picker.list.item(i).setCheckState(Qt.Unchecked)
+    assert picker.value() == "primary"                      # nothing ticked -> main display

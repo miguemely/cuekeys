@@ -5,7 +5,8 @@
     pip install -e ".[build]"
     python packaging/build_app.py [--arch universal2|arm64|x86_64]   # --arch: macOS only
 
-Output: dist/cuekeys-<version>-<os>-<arch>.zip
+Output: dist/cuekeys-<version>-<os>-<arch>.zip and its CycloneDX SBOM,
+dist/cuekeys-<version>-<os>-<arch>.cdx.json (scripts/sbom.py --app).
 
 The build is defined in packaging/cuekeys.spec (which also trims unused Qt
 modules). macOS universal2 builds need a universal2 Python (python.org
@@ -63,6 +64,8 @@ def main():
     zip_path = Path(str(archive) + ".zip")
     print("wrote %s (app %.1f MB, zip %.1f MB)" % (zip_path, folder_size(built) / 2**20,
                                                    zip_path.stat().st_size / 2**20))
+    subprocess.check_call([sys.executable, str(ROOT / "scripts" / "sbom.py"), "--app",
+                           "--target", "%s-%s" % (os_name, arch), "--out", str(archive) + ".cdx.json"])
 
 
 if __name__ == "__main__":

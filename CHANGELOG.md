@@ -6,6 +6,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **SBOMs:** every release app zip and the firmware bundle come with a CycloneDX 1.5 SBOM
+  (`*.cdx.json`): exact versions, licences and package URLs of what's shipped, including Qt, the
+  Python runtime and the PyInstaller bootloader for the apps, and the Adafruit/Pimoroni libraries (with
+  the pmk commit) for the firmware. `scripts/sbom.py`; checked in the release dry run.
 - **Several keypads at once.** Keypads are identified by their hardware id (the RP2040 unique id,
   also their USB serial number), found automatically, and followed when re-plugged.
   - A keypad picker in the editor; each keypad has its own layout (keypads can share a file), and

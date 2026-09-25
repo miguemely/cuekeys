@@ -4,6 +4,11 @@ CueKeys's own code is licensed under the [PolyForm Noncommercial License 1.0.0](
 The components below are **not** covered by that license. Each keeps its own license, and nothing in
 this project restricts your rights under those licenses.
 
+Every release also has a machine-readable **SBOM** (CycloneDX JSON) for each desktop app and for the
+firmware bundle: `cuekeys-<version>-<os>-<arch>.cdx.json` and `cuekeys-firmware-<version>.cdx.json`.
+They record the exact versions shipped. The firmware zip carries its own copy in
+`licenses/sbom.cdx.json`.
+
 ## Distributed with the desktop app and Python package
 
 | Component | License | Source | Notes |

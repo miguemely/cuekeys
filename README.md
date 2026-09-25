@@ -25,7 +25,7 @@ The keypad works on its own for keyboard, media and MIDI actions. The host app i
 
 ## Install
 
-**Desktop app**: download the zip for your computer from the project's **Releases** page:
+**Desktop app**: download the zip for your computer from the project's **Releases** page (each zip has a CycloneDX SBOM next to it, `.cdx.json`):
 
 | Download | For |
 |---|---|

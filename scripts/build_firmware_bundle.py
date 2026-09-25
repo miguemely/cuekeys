@@ -14,6 +14,9 @@ the third-party libraries the built-in device drivers need:
 The Adafruit "py" bundle is used so the zip works on any CircuitPython version.
 
     python scripts/build_firmware_bundle.py [--pmk-ref main] [--out dist]
+
+Also writes a CycloneDX SBOM of the bundle, inside the zip (licenses/sbom.cdx.json)
+and next to it (cuekeys-firmware-<version>.cdx.json).
 """
 
 import argparse
@@ -29,8 +32,18 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sbom  # noqa: E402
+
 ADAFRUIT_RELEASES = "https://api.github.com/repos/adafruit/Adafruit_CircuitPython_Bundle/releases/latest"
 PMK_ARCHIVE = "https://codeload.github.com/pimoroni/pmk-circuitpython/zip/{ref}"
+PMK_COMMIT = "https://api.github.com/repos/pimoroni/pmk-circuitpython/commits/{ref}"
+ADAFRUIT_REPOS = {"adafruit_hid": "Adafruit_CircuitPython_HID",
+                  "adafruit_is31fl3731": "Adafruit_CircuitPython_IS31FL3731",
+                  "adafruit_dotstar": "Adafruit_CircuitPython_DotStar",
+                  "adafruit_pixelbuf": "Adafruit_CircuitPython_Pixelbuf",
+                  "adafruit_bus_device": "Adafruit_CircuitPython_BusDevice",
+                  "neopixel": "Adafruit_CircuitPython_NeoPixel"}
 ADAFRUIT_LIBS = ["adafruit_hid", "adafruit_is31fl3731", "adafruit_dotstar", "adafruit_pixelbuf",
                  "adafruit_bus_device", "neopixel"]
 # Each bundled library's own license travels with it (MIT requires its notice).
@@ -94,6 +107,47 @@ def extract_libs(zip_bytes, names, lib_dir, prefix_re):
         sys.exit("libraries not found: %s" % ", ".join(sorted(missing)))
 
 
+def lib_version(lib_dir, name):
+    """``__version__`` of a bundled library (Adafruit fills it in at release)."""
+    candidates = [lib_dir / (name + ".py"), lib_dir / name / "__init__.py"]
+    candidates += sorted((lib_dir / name).glob("*.py")) if (lib_dir / name).is_dir() else []
+    for path in candidates:
+        if path.is_file():
+            match = re.search(r"""__version__\s*=\s*["']([^"']+)""", path.read_text(errors="replace"))
+            if match and "0.0.0-auto" not in match.group(1):
+                return match.group(1)
+    return None
+
+
+def pmk_commit(ref):
+    try:
+        return json.loads(fetch(PMK_COMMIT.format(ref=ref)))["sha"]
+    except Exception as err:  # noqa: BLE001 - the SBOM then records the ref
+        print("can't resolve pmk-circuitpython %s to a commit (%s)" % (ref, err))
+        return None
+
+
+def firmware_sbom(lib_dir, bundle_tag, pmk_ref, pmk_sha):
+    root = sbom.component("cuekeys-firmware", version(), [sbom.PROJECT_LICENSE],
+                          "pkg:github/miguemely/cuekeys@v%s#firmware" % version(), ctype="firmware",
+                          supplier="Miguel Rodriguez",
+                          description="code.py, boot.py, cuekeys_engine and cuekeys_drivers for CircuitPython")
+    components = []
+    for name in ADAFRUIT_LIBS:
+        ver = lib_version(lib_dir, name) or bundle_tag or "unknown"
+        repo = ADAFRUIT_REPOS[name]
+        comp = sbom.component(name, ver, ["MIT"], "pkg:github/adafruit/%s@%s" % (repo.lower(), ver),
+                              supplier="Adafruit Industries")
+        if bundle_tag:
+            comp["properties"] = [{"name": "cuekeys:adafruit-bundle", "value": bundle_tag}]
+        components.append(comp)
+    components.append(sbom.component("pmk", pmk_sha or pmk_ref, ["MIT"],
+                                     "pkg:github/pimoroni/pmk-circuitpython@%s" % (pmk_sha or pmk_ref),
+                                     supplier="Pimoroni"))
+    deps = {root["bom-ref"]: [c["bom-ref"] for c in components]}
+    return sbom.bom(root, components, deps, {"cuekeys:target": "circuitpython"})
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", default=str(ROOT / "dist"))
@@ -114,8 +168,11 @@ def main():
             shutil.copytree(fw / "lib" / package, lib / package,
                             ignore=shutil.ignore_patterns("__pycache__"))
 
-        extract_libs(adafruit_bundle(args.adafruit_bundle), ADAFRUIT_LIBS, lib,
-                     r"adafruit-circuitpython-bundle-py-\d+/lib/")
+        bundle_zip = adafruit_bundle(args.adafruit_bundle)
+        extract_libs(bundle_zip, ADAFRUIT_LIBS, lib, r"adafruit-circuitpython-bundle-py-\d+/lib/")
+        with zipfile.ZipFile(io.BytesIO(bundle_zip)) as zf:
+            tag = next((m.group(1) for m in (re.match(r"adafruit-circuitpython-bundle-py-(\d+)/", n)
+                                             for n in zf.namelist()) if m), None)
         pmk_zip = fetch(PMK_ARCHIVE.format(ref=args.pmk_ref))
         extract_libs(pmk_zip, ["pmk"], lib, r"pmk-circuitpython-[^/]+/lib/")
 
@@ -128,6 +185,8 @@ def main():
             (licenses / "pmk-LICENSE.txt").write_bytes(zf.read(pmk_license))
         shutil.copy(ROOT / "LICENSE", stage / "LICENSE.txt")
         shutil.copy(ROOT / "THIRD_PARTY_NOTICES.md", licenses / "THIRD_PARTY_NOTICES.md")
+        doc = firmware_sbom(lib, tag, args.pmk_ref, pmk_commit(args.pmk_ref))
+        sbom.write(doc, licenses / "sbom.cdx.json")
 
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
@@ -137,6 +196,7 @@ def main():
                 if path.is_file():
                     zf.write(path, path.relative_to(stage))
         print("wrote %s" % target)
+        print("wrote %s" % sbom.write(doc, out / ("cuekeys-firmware-%s.cdx.json" % version())))
 
 
 if __name__ == "__main__":

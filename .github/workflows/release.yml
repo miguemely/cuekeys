@@ -1,6 +1,7 @@
 # On a vX.Y.Z tag: build the wheel/sdist, the firmware zip and desktop apps
 # (macOS universal2, Windows x64 + ARM64, Linux x64 + ARM64 for Raspberry Pi 4/5),
-# smoke-test every app, then publish a GitHub Release.
+# smoke-test every app, then publish a GitHub Release. Every app zip and the firmware
+# zip come with a CycloneDX SBOM (*.cdx.json, scripts/sbom.py).
 #
 # Dry run: start this workflow by hand (Actions -> Release -> Run workflow). It
 # builds and tests everything, including collecting the release assets, but
@@ -145,6 +146,18 @@ jobs:
             QT_QPA_PLATFORM=offscreen "$BIN" gui /tmp/plain.json & PID=$!
           fi
           sleep 10; kill -0 $PID && kill $PID
+      - name: SBOM
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob, json
+          (path,) = glob.glob("dist/cuekeys-*.cdx.json")
+          doc = json.load(open(path))
+          names = {c["name"].lower().replace("_", "-") for c in doc["components"]}
+          print(path, sorted(names))
+          assert doc["bomFormat"] == "CycloneDX" and doc["metadata"]["component"]["name"] == "cuekeys"
+          assert {"pyserial", "pyside6-essentials", "qt", "cpython", "pyinstaller bootloader"} <= names, names
+          PY
       - name: Smoke test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -163,7 +176,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: app-${{ matrix.name }}
-          path: dist/cuekeys-*.zip
+          path: |
+            dist/cuekeys-*.zip
+            dist/cuekeys-*.cdx.json
 
   release:
     needs: [python-dist, app]
@@ -183,8 +198,9 @@ jobs:
           test $(ls artifacts/*.whl | wc -l) -eq 1
           test $(ls artifacts/*.tar.gz | wc -l) -eq 1
           test $(ls artifacts/cuekeys-firmware-*.zip | wc -l) -eq 1
+          ls artifacts/cuekeys-firmware-*.cdx.json
           for target in macos-universal2 windows-x86_64 windows-arm64 linux-x86_64 linux-arm64; do
-            ls artifacts/cuekeys-*-$target.zip
+            ls artifacts/cuekeys-*-$target.zip artifacts/cuekeys-*-$target.cdx.json
           done
       - name: Create GitHub Release
         if: env.PUBLISH == 'true'
@@ -193,7 +209,7 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" artifacts/* \
             --title "CueKeys ${GITHUB_REF_NAME}" \
-            --notes "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive. See CHANGELOG.md. Free for non-commercial use (PolyForm Noncommercial 1.0.0); commercial use needs a license - see COMMERCIAL-LICENSE.md."
+            --notes "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive, each with a CycloneDX SBOM (.cdx.json). See CHANGELOG.md. Free for non-commercial use (PolyForm Noncommercial 1.0.0); commercial use needs a license - see COMMERCIAL-LICENSE.md."
 
   # Optional: set the repository variable PUBLISH_PYPI=true and configure PyPI
   # "trusted publishing" for this repo and the `pypi` environment. Tags only.
@@ -209,5 +225,5 @@ jobs:
         with:
           name: python-dist
           path: dist
-      - run: rm -f dist/cuekeys-firmware-*.zip
+      - run: rm -f dist/cuekeys-firmware-*.zip dist/*.cdx.json
       - uses: pypa/gh-action-pypi-publish@release/v1

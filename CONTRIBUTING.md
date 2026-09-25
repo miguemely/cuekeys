@@ -122,7 +122,16 @@ in step when you change one. The README has a side-by-side table.
 **To release:**
 1. Bump `__version__` in `src/cuekeys/__init__.py`.
 2. Update `CHANGELOG.md`.
-3. Tag `vX.Y.Z` and push the tag.
+3. Optional but recommended: do a dry run with
+   `gh workflow run release.yml --ref main` (or Actions → Release → Run workflow). It builds the
+   wheel, the firmware zip and the three desktop apps, smoke-tests each app and collects the release
+   assets, but publishes nothing.
+4. Tag `vX.Y.Z` and push the tag. That's the only thing that publishes a release (and PyPI, if
+   enabled).
+
+Dependabot groups its updates into one PR per ecosystem (Python, GitHub Actions). Merge those like
+any other PR once CI is green. Action major-version bumps that only affect `release.yml` aren't
+covered by CI, so do a release dry run for those.
 
 ## Licensing of contributions
 

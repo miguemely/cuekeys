@@ -14,7 +14,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   extending, Companion, platform notes, roadmap).
 - **GitHub support:**
   - GitHub Actions CI and a release workflow, alongside GitLab CI;
-  - issue and pull request templates, Dependabot, and `SECURITY.md`.
+  - issue and pull request templates, Dependabot (grouped updates), and `SECURITY.md`;
+  - a release dry run: starting the release workflow by hand builds, smoke-tests and collects every
+    release asset without publishing.
 
 ### Changed
 - **Renamed from "PMK Macro Manager" to CueKeys.** The project supports much more than Pimoroni

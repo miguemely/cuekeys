@@ -1,6 +1,7 @@
 # AGENTS.md: working on PMK Macro Manager
 
-Orientation for AI coding agents and new contributors. Read this first, then
+Orientation for AI coding agents and new contributors. The project is dual-licensed (PolyForm
+Noncommercial, plus commercial licenses); see invariant 8. Read this first, then
 [docs/architecture.md](docs/architecture.md). Humans: [CONTRIBUTING.md](CONTRIBUTING.md) has the same
 material with more narrative.
 
@@ -77,7 +78,11 @@ the sandbox, not the code.
    on whatever Companion is running on 127.0.0.1). Don't write to `/Volumes/CIRCUITPY` in tests.
 7. **GUI tests must not open modal dialogs.** A `QMessageBox` blocks forever under pytest. The
    `window` fixture patches `_confirm_discard`; do the same for anything new that can prompt.
-8. **macOS native calls only under the Cocoa platform** (`gui/macos.available()`). Under the
+8. **Licensing:** the project is PolyForm Noncommercial with separate commercial licenses. New source
+   files get `# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0`. Only add permissive or LGPL
+   (as a replaceable library) dependencies, never GPL or AGPL, and record distributed ones in
+   `THIRD_PARTY_NOTICES.md`.
+9. **macOS native calls only under the Cocoa platform** (`gui/macos.available()`). Under the
    offscreen platform `winId()` isn't an `NSView`, and messaging it segfaults.
 
 ## Gotchas we already hit
@@ -105,6 +110,7 @@ the sandbox, not the code.
 - [ ] New behaviour has a test (engine → `test_engine.py`, host logic → `test_runtime.py` /
       `test_config.py`, drivers → `test_drivers.py` with stubbed modules, UI → `test_gui.py`).
 - [ ] Generated files are regenerated (invariant 4) if the schema, example or profiles changed.
+- [ ] New files have the SPDX header, and any new distributed dependency is in `THIRD_PARTY_NOTICES.md`.
 - [ ] Docs are updated: README (user-facing), `docs/protocol.md` (new messages), `docs/devices.md`
       (profile/driver fields), `CHANGELOG.md`.
 - [ ] If you touched firmware or LED/key handling: test on real hardware if you can. The checklist is

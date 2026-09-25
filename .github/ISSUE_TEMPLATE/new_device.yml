@@ -1,0 +1,39 @@
+name: Support a new keypad
+description: Request (or offer) a device profile for another macro keypad
+labels: [device]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most keypads only need a `device.json` — see [docs/devices.md](../blob/main/docs/devices.md).
+        If you can, try writing the profile yourself and attach it here or open a pull request.
+  - type: input
+    id: name
+    attributes:
+      label: Keypad (make / model, link)
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: CircuitPython board id
+      description: The `Board ID:` line in CIRCUITPY/boot_out.txt.
+      placeholder: adafruit_macropad_rp2040
+  - type: textarea
+    id: layout
+    attributes:
+      label: Key layout and wiring
+      description: Rows × columns, which pins the keys use (one pin per key or a matrix), LEDs (NeoPixel pin, count, order), USB connector side.
+    validations:
+      required: true
+  - type: textarea
+    id: profile
+    attributes:
+      label: Draft device.json (optional)
+      render: json
+  - type: checkboxes
+    id: test
+    attributes:
+      label: Testing
+      options:
+        - label: I own this keypad and can test on real hardware

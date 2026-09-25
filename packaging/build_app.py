@@ -30,8 +30,13 @@ def main():
         "--add-data", "%s:pmk_macro_manager/firmware" % (ROOT / "firmware"),
         "--add-data", "%s:pmk_macro_manager/devices/builtin"
         % (ROOT / "src" / "pmk_macro_manager" / "devices" / "builtin"),
+        # License texts must ship with the binaries (ours, and LGPL-3.0 for PySide6/Qt).
+        "--add-data", "%s:." % (ROOT / "LICENSE"),
+        "--add-data", "%s:." % (ROOT / "THIRD_PARTY_NOTICES.md"),
+        "--add-data", "%s:." % (ROOT / "COMMERCIAL-LICENSE.md"),
+        "--add-data", "%s:licenses" % (ROOT / "licenses"),
         "--collect-submodules", "pmk_macro_manager",
-        "--osx-bundle-identifier", "io.gitlab.pmk-macro-manager",
+        "--osx-bundle-identifier", "io.github.miguemely.pmk-macro-manager",
         str(ROOT / "packaging" / "launcher.py"),
     ], cwd=ROOT)
     dist = ROOT / "dist"

@@ -85,7 +85,7 @@ For changes to firmware, drivers, LEDs or key handling:
    - [ ] Companion layer: Companion's buttons show on the pad and overlay, presses reach Companion,
          and page keys work.
    - [ ] Unplug and replug: the app reconnects by itself.
-4. Say in the MR what you tested, on what board and firmware version.
+4. Say in the PR what you tested, on what board and firmware version.
 
 ## Docs to update with a change
 
@@ -98,32 +98,46 @@ For changes to firmware, drivers, LEDs or key handling:
 | Found a platform quirk | `docs/platform-notes.md` |
 | Left something unfinished | `docs/roadmap.md` |
 
-## Commits and merge requests
+## Commits and pull requests
 
 - Commit messages: an imperative summary line of 72 characters or fewer ("Add MacroPad encoder
   support"), then a body that explains *why* and anything non-obvious.
-- Keep MRs focused. Include tests, and screenshots for UI changes.
+- Keep PRs focused. Include tests, and screenshots for UI changes.
 - CI must be green: ruff, pytest on 3.10–3.13, wheel and firmware bundle builds.
 
 ## CI and releases
 
-`.gitlab-ci.yml` stages:
+The pipeline exists for both GitHub (`.github/workflows/`) and GitLab (`.gitlab-ci.yml`). Keep them
+in step when you change one. The README has a side-by-side table.
 
-1. **lint:** ruff, plus a check on tags that the tag matches the version.
-2. **test:** a pytest matrix.
-3. **build:** the wheel and the firmware zip.
-4. **package:** PyInstaller apps for Linux, Windows and macOS. These run on tags, and can be started
-   by hand on the default branch.
-5. **release:** uploads to the Generic Package Registry and creates a GitLab Release. An optional
-   manual PyPI job runs when `PYPI_TOKEN` is set.
-
-**Runner variables:**
-- `WINDOWS_RUNNER_TAG` and `MACOS_RUNNER_TAG`. GitLab-hosted macOS runners need Premium or
-  Ultimate; otherwise point this at a self-hosted Mac.
-- `GITHUB_TOKEN`: avoids GitHub API rate limits when building the firmware zip.
-- `ADAFRUIT_BUNDLE` and `PMK_REF`: pin the library versions.
+- **Every push and PR:** ruff; pytest on Linux × Python 3.10–3.13 plus macOS and Windows; wheel and
+  firmware zip builds.
+- **On a `vX.Y.Z` tag:** desktop apps for Linux, Windows and macOS, plus the wheel and firmware zip,
+  published as a GitHub Release (or GitLab Release and package registry).
+  - PyPI publishing is optional: on GitHub, set the repository variable `PUBLISH_PYPI=true` and set
+    up PyPI trusted publishing; on GitLab, set `PYPI_TOKEN` and run the manual job.
+- **GitLab-only runner variables:** `WINDOWS_RUNNER_TAG` and `MACOS_RUNNER_TAG` (hosted macOS needs
+  Premium). Everywhere: `ADAFRUIT_BUNDLE` / `PMK_REF` pin firmware library versions.
 
 **To release:**
 1. Bump `__version__` in `src/pmk_macro_manager/__init__.py`.
 2. Update `CHANGELOG.md`.
 3. Tag `vX.Y.Z` and push the tag.
+
+## Licensing of contributions
+
+The project is dual-licensed: [PolyForm Noncommercial 1.0.0](LICENSE) for everyone, and separate
+commercial licenses sold by the copyright holder ([COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
+Contributed code can only be included in the commercial licenses if the contributor grants those
+rights. So:
+
+- **Every contribution needs the project's Contributor License Agreement (CLA).** You keep your
+  copyright, and grant the maintainers the right to distribute your contribution under both the
+  non-commercial and commercial licenses.
+- The PR template has a checkbox for this, and a CLA bot may ask you to sign once.
+- New source files get the header `# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0`
+  (firmware files already carry it).
+- Only add dependencies whose licenses allow this model: permissive (MIT, BSD, Apache-2.0, ISC,
+  PSF) or LGPL used as a separately replaceable library. **Don't add GPL or AGPL dependencies**
+  without asking first, because they'd conflict with the non-commercial and commercial licensing.
+  Record every new distributed dependency in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

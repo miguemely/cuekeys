@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Keypad hardware drivers.
 
 A driver is a module in this package that defines ``Hardware``::

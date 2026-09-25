@@ -478,10 +478,21 @@ class MainWindow(QMainWindow):
         action(m, "Previous layer", lambda: self._step_layer(-1), "Ctrl+[")
 
         m = self.menuBar().addMenu("&Help")
-        action(m, "About", lambda: QMessageBox.about(
+        action(m, "About", self.show_about)
+
+    def show_about(self):
+        import PySide6
+        from PySide6.QtCore import qVersion
+
+        QMessageBox.about(
             self, "PMK Macro Manager",
-            "PMK Macro Manager %s\nMacro, layer, MIDI/OSC, grandMA and Companion "
-            "manager for Pimoroni Keybow 2040 / Pico RGB Keypad." % __version__))
+            "<b>PMK Macro Manager %s</b><br>Macros, layers, MIDI/OSC, grandMA and Companion for "
+            "CircuitPython macro keypads.<br><br>"
+            "Free for non-commercial use under the PolyForm Noncommercial License 1.0.0; commercial "
+            "use needs a commercial license (see COMMERCIAL-LICENSE.md).<br><br>"
+            "Uses PySide6 %s and Qt %s under the LGPL-3.0 (source: code.qt.io), and pyserial "
+            "(BSD-3-Clause). See THIRD_PARTY_NOTICES.md.<br>Not affiliated with Pimoroni, Adafruit "
+            "or Bitfocus." % (__version__, PySide6.__version__, qVersion()))
 
     # ---------------------------------------------------------------- data
     def layer_names(self):

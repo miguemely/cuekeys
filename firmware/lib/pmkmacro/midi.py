@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Raw MIDI message builders.
 
 Pure Python with no CircuitPython dependencies, so the same code runs on the

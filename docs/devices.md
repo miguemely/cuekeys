@@ -104,7 +104,7 @@ Keep the driver to plain CircuitPython: no f-strings with `=`, no dataclasses, n
 
 ## Sharing a profile
 
-To add a profile to the project, open a merge request with:
+To add a profile to the project, open a pull request with:
 - the profile under `src/pmk_macro_manager/devices/builtin/<id>/`;
 - the driver under `firmware/lib/pmkdrivers/`, if it needs a new one;
 - a line in the README's supported-devices table.

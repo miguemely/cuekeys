@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """PMK Macro Manager firmware.
 
 Reads ``/config.json`` (written by the host app) and turns the keypad into a

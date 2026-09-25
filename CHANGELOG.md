@@ -12,6 +12,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
   selected displays (`overlay.screens`). It follows displays being plugged in and unplugged.
 - **Developer documentation:** `AGENTS.md`, `CONTRIBUTING.md`, and `docs/` (architecture, protocol,
   extending, Companion, platform notes, roadmap).
+- **GitHub support:**
+  - GitHub Actions CI and a release workflow, alongside GitLab CI;
+  - issue and pull request templates, Dependabot, and `SECURITY.md`.
+
+### Changed
+- **Licensing:** the project is now source-available under the **PolyForm Noncommercial License
+  1.0.0**, with separate commercial licenses (`COMMERCIAL-LICENSE.md`). The earlier MIT markings are
+  replaced.
+  - Third-party licenses are documented in `THIRD_PARTY_NOTICES.md` and `licenses/`.
+  - The firmware zip and desktop apps now ship the relevant license texts.
+  - The About box shows the license and the PySide6/Qt versions.
 
 ## [0.1.0]: first development version
 

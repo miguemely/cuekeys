@@ -1,0 +1,30 @@
+name: Commercial licensing
+description: Ask for a commercial license (paid shows, companies, resale, services)
+title: "Commercial licensing: <organisation or name>"
+labels: [licensing]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Commercial use of PMK Macro Manager needs a commercial license — see
+        [COMMERCIAL-LICENSE.md](../blob/main/COMMERCIAL-LICENSE.md). Share only what you're happy to
+        have visible here; we'll continue privately.
+  - type: input
+    id: who
+    attributes:
+      label: Name / organisation
+    validations:
+      required: true
+  - type: input
+    id: contact
+    attributes:
+      label: How should we contact you?
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: Intended use
+      description: e.g. touring shows, broadcast, internal company use, bundling with hardware, number of seats.
+    validations:
+      required: true

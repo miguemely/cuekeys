@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """One GPIO pin per key (CircuitPython ``keypad.Keys``), optional NeoPixels.
 
 driver_config::

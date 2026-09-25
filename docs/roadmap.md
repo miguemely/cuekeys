@@ -8,7 +8,8 @@ Code exists for these but hasn't been checked for real. Anyone with the setup ca
 
 | Item | What's needed |
 |---|---|
-| GitLab CI pipeline | Push to GitLab and fix whatever the first run turns up (runner tags, apt packages, the Windows Python install) |
+| GitHub Actions workflows | Watch the first `ci.yml` run (especially the macOS and Windows test jobs) and a first `release.yml` tag build |
+| GitLab CI pipeline | Push to a GitLab mirror and fix whatever the first run turns up (runner tags, apt packages, the Windows Python install) |
 | Windows / macOS desktop builds (PyInstaller) | Run `packaging/build_app.py` on each OS and smoke-test the app |
 | Pico RGB Keypad Base profile | Hardware test (`rgbkeypad`), then set `"tested": true` |
 | Adafruit MacroPad RP2040 profile | Hardware test (`adafruit_macropad`) |
@@ -18,8 +19,9 @@ Code exists for these but hasn't been checked for real. Anyone with the setup ca
 
 ## Housekeeping
 
-- **License:** `pyproject.toml` says MIT and firmware files carry MIT SPDX headers (matching Pimoroni's
-  `pmk`), but there's no `LICENSE` file yet. The owner needs to decide.
+- **Contributor License Agreement:** the dual-licensing model needs a CLA text and a way to collect
+  signatures (e.g. the CLA Assistant GitHub app). Have a lawyer review it, together with the
+  commercial license terms.
 - **`gui/editor.py` is large.** Split the key editor panel and layer panel into their own modules. (S)
 - **OSC / Companion targets are edited as raw JSON** in Settings. Replace that with proper forms. (S)
 

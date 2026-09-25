@@ -146,4 +146,5 @@ default LED correction.
   profiles as data).
 - **Firmware zip:** `scripts/build_firmware_bundle.py` (the Adafruit *py* bundle plus `pmk`, so it
   works on any CircuitPython version).
-- **CI/CD:** `.gitlab-ci.yml`. See [CONTRIBUTING.md](../CONTRIBUTING.md#ci-and-releases).
+- **CI/CD:** `.github/workflows/` (GitHub Actions) and `.gitlab-ci.yml` (GitLab CI). See
+  [CONTRIBUTING.md](../CONTRIBUTING.md#ci-and-releases).

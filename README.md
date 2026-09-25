@@ -9,7 +9,7 @@ Create, edit and manage macros on CircuitPython macro keypads, on Windows, macOS
 - **OSC, grandMA2 and grandMA3**: MA3 command-line OSC (`/gma3/cmd`), MA2 Telnet commands, and any OSC message.
 - **Bitfocus Companion**: press a Companion button over HTTP, or make a whole layer a Companion *Satellite surface*. Companion then controls those keys, and its button colours and text show on the keypad LEDs and on the overlay.
 - **Any keypad**: device profiles describe each pad's key grid, LEDs and firmware driver. Generic drivers cover one-pin-per-key and diode-matrix builds with NeoPixels, so most DIY RP2040 pads need only a JSON file.
-- **GitLab CI/CD**: lint, tests on Python 3.10–3.13, a wheel, a firmware zip, desktop apps for all three OSes, and a GitLab Release.
+- **CI/CD on GitHub Actions and GitLab CI**: lint, tests on Python 3.10–3.13 (plus macOS and Windows), a wheel, a firmware zip, desktop apps for all three OSes, and releases.
 
 ```
  ┌──────────── keypad (CircuitPython) ────────────┐         ┌──────────── host app (Python / Qt) ─────────────┐
@@ -25,7 +25,7 @@ The keypad works on its own for keyboard, media and MIDI actions. The host app i
 
 ## Install
 
-**Desktop app**: download the zip for your OS from the GitLab Releases page.
+**Desktop app**: download the zip for your OS from the project's **Releases** page.
 
 **From source** (Python 3.10+):
 
@@ -159,19 +159,30 @@ ruff check .
 - `src/pmk_macro_manager/config.py` holds the schema. The editor forms and validation are generated from `ACTION_SPECS`. A test checks that the firmware and the host support the same action types.
 - `firmware/config.json` is the starter layout. It is generated from `examples.py`, and a test keeps the two in sync.
 
-### CI/CD (GitLab)
+### CI/CD (GitHub Actions and GitLab CI)
 
-`.gitlab-ci.yml` runs:
+The same pipeline is defined twice, so the project can live on GitHub, GitLab, or both:
 
-1. **lint**: ruff, plus a check that the tag matches the package version.
-2. **test**: pytest on Python 3.10–3.13, with the Qt GUI tests running headless.
-3. **build**: the wheel/sdist and the firmware zip.
-4. **package**: PyInstaller desktop apps for Linux, Windows and macOS. These run on tags, and can be started by hand on the default branch.
-5. **release**: uploads to the Generic Package Registry and creates a GitLab Release. There is also an optional manual PyPI upload when `PYPI_TOKEN` is set.
+| | GitHub | GitLab |
+|---|---|---|
+| Every push / PR | `.github/workflows/ci.yml`: ruff; pytest on Linux × Python 3.10–3.13 plus macOS and Windows; wheel and firmware zip | `.gitlab-ci.yml` lint / test / build stages |
+| Tags `vX.Y.Z` | `.github/workflows/release.yml`: desktop apps for Linux, Windows and macOS, the wheel and the firmware zip, published as a GitHub Release; optional PyPI publishing via trusted publishing (set the repository variable `PUBLISH_PYPI=true`) | package and release stages: GitLab Release and Generic Package Registry |
 
-Runner notes:
-- The Windows job uses GitLab's hosted Windows runners (`saas-windows-medium-amd64`).
-- macOS hosted runners need Premium or Ultimate. Otherwise set `MACOS_RUNNER_TAG` to the tag of a self-hosted Mac runner.
-- Set `GITHUB_TOKEN` to avoid GitHub API rate limits when building the firmware zip. Set `ADAFRUIT_BUNDLE` / `PMK_REF` to pin library versions.
+Notes:
+- GitHub's hosted macOS and Windows runners are free for public repos.
+- On GitLab, macOS runners need Premium. Otherwise set `MACOS_RUNNER_TAG` to a self-hosted Mac.
+- The firmware zip build uses `GITHUB_TOKEN`, which is automatic on GitHub, to avoid API rate
+  limits. Set `ADAFRUIT_BUNDLE` / `PMK_REF` to pin library versions.
 
-To release: bump `__version__` in `src/pmk_macro_manager/__init__.py`, then tag `vX.Y.Z` and push the tag.
+To release: bump `__version__` in `src/pmk_macro_manager/__init__.py`, update `CHANGELOG.md`, then tag `vX.Y.Z` and push the tag.
+
+## License
+
+PMK Macro Manager is **source-available**: free for **non-commercial** use under the
+[PolyForm Noncommercial License 1.0.0](LICENSE). **Commercial use** needs a separate commercial
+license; see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for what counts as commercial and how to
+get one. Third-party components keep their own licenses (PySide6/Qt under LGPL-3.0, pyserial under
+BSD, the CircuitPython libraries under MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+This project isn't affiliated with or endorsed by Pimoroni, Adafruit, Bitfocus or MA Lighting.
+Product names are used only to describe compatibility.

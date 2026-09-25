@@ -33,6 +33,17 @@ ADAFRUIT_RELEASES = "https://api.github.com/repos/adafruit/Adafruit_CircuitPytho
 PMK_ARCHIVE = "https://codeload.github.com/pimoroni/pmk-circuitpython/zip/{ref}"
 ADAFRUIT_LIBS = ["adafruit_hid", "adafruit_is31fl3731", "adafruit_dotstar", "adafruit_pixelbuf",
                  "adafruit_bus_device", "neopixel"]
+# Each bundled library's own license travels with it (MIT requires its notice).
+LIBRARY_LICENSES = {
+    "adafruit_hid": "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_HID/main/LICENSE",
+    "adafruit_is31fl3731":
+        "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_IS31FL3731/main/LICENSE",
+    "adafruit_dotstar": "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_DotStar/main/LICENSE",
+    "adafruit_pixelbuf": "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Pixelbuf/main/LICENSE",
+    "adafruit_bus_device":
+        "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_BusDevice/main/LICENSE",
+    "neopixel": "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_NeoPixel/main/LICENSE",
+}
 
 
 def fetch(url):
@@ -105,8 +116,18 @@ def main():
 
         extract_libs(adafruit_bundle(args.adafruit_bundle), ADAFRUIT_LIBS, lib,
                      r"adafruit-circuitpython-bundle-py-\d+/lib/")
-        extract_libs(fetch(PMK_ARCHIVE.format(ref=args.pmk_ref)), ["pmk"], lib,
-                     r"pmk-circuitpython-[^/]+/lib/")
+        pmk_zip = fetch(PMK_ARCHIVE.format(ref=args.pmk_ref))
+        extract_libs(pmk_zip, ["pmk"], lib, r"pmk-circuitpython-[^/]+/lib/")
+
+        licenses = stage / "licenses"
+        licenses.mkdir()
+        for name, url in LIBRARY_LICENSES.items():
+            (licenses / ("%s-LICENSE.txt" % name)).write_bytes(fetch(url))
+        with zipfile.ZipFile(io.BytesIO(pmk_zip)) as zf:
+            pmk_license = next(n for n in zf.namelist() if re.match(r"pmk-circuitpython-[^/]+/LICENSE$", n))
+            (licenses / "pmk-LICENSE.txt").write_bytes(zf.read(pmk_license))
+        shutil.copy(ROOT / "LICENSE", stage / "LICENSE.txt")
+        shutil.copy(ROOT / "THIRD_PARTY_NOTICES.md", licenses / "THIRD_PARTY_NOTICES.md")
 
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)

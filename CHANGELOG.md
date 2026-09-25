@@ -6,6 +6,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Live colour preview:** layer and key colour changes show on the keypad as you make them (host
+  `colors` message; firmware update needed). **Deploy** is marked • while changes aren't deployed.
+- **Easier key colours:** right-click a key on the editor's pad for a colour menu, and one-click
+  colour swatches under the key and layer Colour fields.
 - **SBOMs:** every release app zip and the firmware bundle come with a CycloneDX 1.5 SBOM
   (`*.cdx.json`): exact versions, licences and package URLs of what's shipped, including Qt, the
   Python runtime and the PyInstaller bootloader for the apps, and the Adafruit/Pimoroni libraries (with
@@ -39,6 +43,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
     therefore need a current distribution (glibc 2.39+ today: Ubuntu 24.04+, Debian 13+, Raspberry
     Pi OS trixie+); on older ones, install with `pip install "cuekeys[gui]"` instead.
   - Each build is smoke-tested in CI before release.
+
+### Fixed
+- Colour changes in the editor (and on the overlay) didn't reach the keypad until you deployed.
 
 ### Changed
 - **Companion surface ids include the keypad:** `ck-<keypad>-<layer>` (e.g. `ck-e35b8c2b-example`),

@@ -88,6 +88,7 @@ class KeypadSession:
         self.pressed = {}                 # key -> layer it was pressed on
         self.companion_states = {}        # (layer, key) -> state dict
         self.companion_pages = {}         # layer -> Companion page shown on its surface
+        self._sent_colors = None          # last colour preview sent to the keypad
         if link is not None:
             self.link = link
         elif uid == VIRTUAL_UID:
@@ -127,6 +128,24 @@ class KeypadSession:
         if self.layer >= len(config["layers"]):
             self.layer = 0
         self.hub.sync_satellites()
+        self.push_colors()
+
+    def color_preview(self):
+        """The layout's LED colours, as the keypad's ``colors`` message wants them."""
+        layers = []
+        for layer in self.config["layers"]:
+            keys = {k: v.get("color") or None for k, v in (layer.get("keys") or {}).items()
+                    if key_is_assigned(v)}
+            layers.append({"c": layer.get("color") or None, "k": keys})
+        return {"t": "colors", "layers": layers}
+
+    def push_colors(self, force=False):
+        """Show the editor's colours on the keypad right away (until the next deploy)."""
+        message = self.color_preview()
+        if not force and message == self._sent_colors:
+            return
+        if self.link.send(message):
+            self._sent_colors = message
 
     # -- commands --------------------------------------------------------------
     def select_layer(self, index):
@@ -168,6 +187,7 @@ class KeypadSession:
                 self.emit("log", level="error", message="keypad config error: %s" % msg["config_error"])
             self.emit("status", connected=True, port=self.port, firmware=self.firmware)
             self._push_companion_leds()
+            self.push_colors(force=True)             # the keypad just (re)started: no preview
         elif kind == "layer":
             self._set_layer(int(msg.get("i", 0)))
         elif kind == "key":

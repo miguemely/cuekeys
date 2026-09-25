@@ -39,6 +39,7 @@ whenever the port (re)connects.
 | `led` | `l` layer, `k` key, `rgb` [r, g, b] | Companion button colour for a key on a Companion layer |
 | `led_cal` | `gamma`, `balance` [r, g, b] (0-1) | Live LED colour correction (calibration dialog) |
 | `led_test` | `rgb` (`"#rrggbb"`, [r, g, b] or null) | Show one colour on every key; null goes back to the layout |
+| `colors` | `layers`: one `{"c": layer colour or null, "k": {key: colour or null}}` per layer, listing the keys the editor has assigned (null = layer colour); or null | Live colour preview of the editor's layout until the next deploy/reload. Sent on every edit (only when it changed) and after each `hello`. Keys not in `k` are unassigned (off, or Companion's colour) |
 | `reload` | none | `supervisor.reload()`: restart the firmware |
 
 ## Adding a message

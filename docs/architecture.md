@@ -65,6 +65,10 @@ editing, the overlay and deployment.
 - **LEDs.** `key_color()` → `corrected()` applies three per-channel 256-entry lookup tables that fold
   brightness, gamma (`led_gamma`, default 2.2) and white balance (`led_balance`) together. The result
   goes to `backend.set_led`. `set_test_color` (used by calibration) overrides every key.
+- **Colour preview.** `set_preview(layers)` (host `colors` message) makes `key_color()` use the
+  editor's colours and assigned keys instead of the deployed layout's, so colour edits show at once.
+  Actions still come from the deployed layout; `load()` (a deploy/reload) ends the preview. Host side:
+  `KeypadSession.push_colors()`, called on every editor change and after `hello`.
 - **Errors never crash the loop.** A failing action is reported to the host as a `log` message.
 
 ### Drivers (`firmware/lib/cuekeys_drivers/`)

@@ -13,7 +13,7 @@
   "layers": [
     {
       "name": "Editing",
-      "color": "#3050ff",
+      "color": "#e70f00",
       "mode": "local",
       "keys": {
         "0": {
@@ -81,11 +81,16 @@
           ]
         },
         "6": {
-          "label": "Hello",
+          "label": "BW Autofill",
           "press": [
             {
-              "type": "text",
-              "text": "Hello from CueKeys!"
+              "type": "keys",
+              "keys": [
+                "CONTROL",
+                "SHIFT",
+                "L"
+              ],
+              "mode": "tap"
             }
           ]
         },
@@ -149,6 +154,15 @@
               "mode": "tap"
             }
           ]
+        },
+        "12": {
+          "press": [
+            {
+              "type": "host",
+              "event": ""
+            }
+          ],
+          "label": "Lock"
         },
         "13": {
           "label": "Play",

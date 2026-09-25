@@ -4,7 +4,7 @@ import copy
 import uuid
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, QSize, Qt, QUrl, Signal
+from PySide6.QtCore import QPoint, QRectF, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QIcon, QKeySequence, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QColorDialog,
@@ -71,13 +71,21 @@ def muted(text):
     return label
 
 
+# One-click colours for keys and layers (LED-friendly: saturated, distinct on the pad).
+PRESET_COLORS = [("Red", "#ff0000"), ("Orange", "#ff6000"), ("Amber", "#ffb000"),
+                 ("Yellow", "#ffff00"), ("Green", "#00ff00"), ("Cyan", "#00ffff"),
+                 ("Blue", "#0040ff"), ("Purple", "#8000ff"), ("Pink", "#ff00a0"),
+                 ("White", "#ffffff")]
+
+
 class ColorButton(QPushButton):
     changed = Signal(str)
 
-    def __init__(self, allow_clear=True):
+    def __init__(self, allow_clear=True, default_text="Default"):
         super().__init__()
         self.value = None
         self.allow_clear = allow_clear
+        self.default_text = default_text
         self.clicked.connect(self._pick)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(lambda _pos: self._clear())
@@ -92,7 +100,7 @@ class ColorButton(QPushButton):
             self.setStyleSheet("QPushButton { background:%s; color:%s; border-color:%s }"
                                % (color.name(), text_color_for(color).name(), color.darker(130).name()))
         else:
-            self.setText("Default")
+            self.setText(self.default_text)
             self.setStyleSheet("")
 
     def _pick(self):
@@ -106,11 +114,56 @@ class ColorButton(QPushButton):
             self.set_value(None)
             self.changed.emit("")
 
+    def choose(self, value):
+        """Set from outside (swatch, menu) and notify."""
+        self.set_value(value or None)
+        self.changed.emit(value or "")
+
+
+class ColorField(QWidget):
+    """A ColorButton with a row of preset swatches underneath."""
+
+    changed = Signal(str)
+
+    def __init__(self, allow_clear=True, default_text="Default"):
+        super().__init__()
+        self.button = ColorButton(allow_clear, default_text)
+        self.button.changed.connect(self.changed)
+        swatches = QHBoxLayout()
+        swatches.setSpacing(3)
+        swatches.setContentsMargins(0, 0, 0, 0)
+        for name, value in PRESET_COLORS:
+            swatch = QPushButton()
+            swatch.setFixedSize(18, 18)
+            swatch.setToolTip(name)
+            swatch.setCursor(Qt.PointingHandCursor)
+            swatch.setStyleSheet("QPushButton { background:%s; border:1px solid #00000060; border-radius:4px;"
+                                 " padding:0; min-width:0; min-height:0 }" % value)
+            swatch.clicked.connect(lambda _c=False, v=value: self.button.choose(v))
+            swatches.addWidget(swatch)
+        swatches.addStretch()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(self.button)
+        layout.addLayout(swatches)
+
+    @property
+    def value(self):
+        return self.button.value
+
+    def set_value(self, value):
+        self.button.set_value(value)
+
+    def choose(self, value):
+        self.button.choose(value)
+
 
 class KeyPad(QWidget):
     """Custom-painted keypad, laid out like the physical device (any grid size)."""
 
     selected = Signal(int)
+    menu_requested = Signal(int, QPoint)        # right-click on a key
     PAD = 18
     GAP = 10
     TOP = 22  # room for the USB connector hint
@@ -182,6 +235,8 @@ class KeyPad(QWidget):
         key = self._key_at(event.position())
         if key is not None:
             self.select(key)
+            if event.button() == Qt.RightButton:
+                self.menu_requested.emit(key, event.globalPosition().toPoint())
 
     def mouseMoveEvent(self, event):
         key = self._key_at(event.position())
@@ -268,6 +323,7 @@ class MainWindow(QMainWindow):
         path = path or runtime.layout_path
         self.path = Path(path) if path else None
         self.dirty = False
+        self.undeployed = False            # edits the keypad only has as a colour preview
         self.layer_index = 0
         self.key = 0
         self.pressed = set()
@@ -347,7 +403,7 @@ class MainWindow(QMainWindow):
 
         self.layer_name = QLineEdit()
         self.layer_name.textEdited.connect(self._layer_edited)
-        self.layer_color = ColorButton()
+        self.layer_color = ColorField()
         self.layer_color.changed.connect(self._layer_edited)
         self.layer_mode = QComboBox()
         self.layer_mode.addItem("Local actions", "local")
@@ -384,6 +440,7 @@ class MainWindow(QMainWindow):
         # ---- keypad (centre)
         self.grid = KeyPad()
         self.grid.selected.connect(self._key_selected)
+        self.grid.menu_requested.connect(self._key_menu)
         self.grid_title = QLabel()
         self.grid_title.setObjectName("title")
         self.live_pill = QLabel("● live on keypad")
@@ -398,7 +455,8 @@ class MainWindow(QMainWindow):
         cv.setContentsMargins(16, 12, 16, 12)
         cv.addLayout(head)
         cv.addWidget(self.grid, 1)
-        cv.addWidget(muted("Click a key to edit it. Keys pressed on the keypad light up here and on the overlay."))
+        cv.addWidget(muted("Click a key to edit it, right-click to colour it. Keys pressed on the keypad light "
+                           "up here and on the overlay."))
 
         # ---- key editor (right)
         self.key_title = QLabel()
@@ -407,7 +465,9 @@ class MainWindow(QMainWindow):
         self.key_label = QLineEdit()
         self.key_label.setPlaceholderText("Shown on the overlay (optional)")
         self.key_label.textEdited.connect(self._key_edited)
-        self.key_color = ColorButton()
+        self.key_color = ColorField(default_text="Same as layer")
+        self.key_color.button.setToolTip("LED and overlay colour of this key. Click to pick any colour, "
+                                         "right-click to go back to the layer's colour.")
         self.key_color.changed.connect(self._key_edited)
         key_form = QFormLayout()
         key_form.setLabelAlignment(Qt.AlignRight)
@@ -541,8 +601,20 @@ class MainWindow(QMainWindow):
 
     def _changed(self):
         self._set_dirty(True)
+        self._set_undeployed(True)
         self._render_grid()
         self.overlays.update()
+        for session in self.hub.sessions_using(self.config):
+            session.push_colors()           # colours show on the keypad right away
+
+    def _set_undeployed(self, pending):
+        """Colours preview live; actions and everything else need a deploy."""
+        self.undeployed = pending
+        self.act_deploy.setText("Deploy to keypad •" if pending else "Deploy to keypad")
+        self.act_deploy.setToolTip(
+            "Colours already show on the keypad. Deploy (Ctrl+D) to update key actions and keep "
+            "the changes when the keypad restarts." if pending else
+            "Write this layout to the keypad (Ctrl+D)")
 
     def _load_into_ui(self):
         self.hub.config_changed(self.config)
@@ -734,6 +806,23 @@ class MainWindow(QMainWindow):
         self.slot_tabs.setTabText(2, "Hold (%d)" % len(hold) if hold else "Hold")
         self._changed()
 
+    def _key_menu(self, key, pos):
+        """Right-click on a key: colours, copy / paste / clear."""
+        from PySide6.QtWidgets import QMenu
+
+        menu = QMenu(self)
+        menu.addSection("Key %d colour" % key)
+        for name, value in PRESET_COLORS:
+            menu.addAction(swatch_icon(value), name, lambda v=value: self.key_color.choose(v))
+        menu.addAction("Custom colour…", self.key_color.button._pick)
+        menu.addAction("Same as layer", lambda: self.key_color.choose(None))
+        menu.addSeparator()
+        menu.addAction("Copy", self.copy_key)
+        menu.addAction("Paste", self.paste_key)
+        menu.addAction("Clear", self.clear_key)
+        menu.popup(pos)
+        return menu
+
     def clear_key(self):
         self.layer.setdefault("keys", {}).pop(str(self.key), None)
         self._key_selected(self.key)
@@ -901,6 +990,7 @@ class MainWindow(QMainWindow):
         self.layer_index = 0
         self.hub.assign_layout(self.runtime, config, str(self.path) if self.path else None)
         self._load_into_ui()
+        self._set_undeployed(True)
         self.overlay_action.setChecked(config.get("overlay", {}).get("enabled", True))
         if path:
             self.settings.setValue("last_file", str(path))
@@ -977,6 +1067,7 @@ class MainWindow(QMainWindow):
         except (OSError, RuntimeError) as err:
             QMessageBox.critical(self, "Deploy", str(err))
             return
+        self._set_undeployed(False)
         self.statusBar().showMessage("Deployed to %s — keypad is reloading" % target, 6000)
 
     def load_from_device(self):

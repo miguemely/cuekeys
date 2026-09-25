@@ -253,3 +253,29 @@ def test_overlay_status_scrolls_but_layer_name_stays(window, monkeypatch):
                         lambda self, p, rect, text, *a: drawn.append(text) or real(self, p, rect, text, *a))
     win.grab()
     assert drawn == ["keypad offline"]            # only the status words go through the ticker
+
+
+def test_key_colour_previews_on_the_keypad(window):
+    link = window.runtime.link
+    link.connected = True
+    window.grid.select(2)
+    window.key_color.set_value("#ff0000")
+    window._key_edited()
+    sent = [m for m in link.sent if m["t"] == "colors"]
+    assert sent and sent[-1]["layers"][0]["k"]["2"] == "#ff0000"
+    assert window.undeployed and window.act_deploy.text().endswith("•")
+
+
+def test_colour_swatches_and_key_menu(window):
+    window.grid.select(5)
+    window.key_color.choose("#00ff00")                      # a preset swatch
+    assert window.config["layers"][0]["keys"]["5"]["color"] == "#00ff00"
+    menu = window._key_menu(5, window.mapToGlobal(window.rect().center()))
+    red = next(a for a in menu.actions() if a.text() == "Red")
+    red.trigger()
+    assert window.config["layers"][0]["keys"]["5"]["color"] == "#ff0000"
+    next(a for a in menu.actions() if a.text() == "Same as layer").trigger()
+    assert "color" not in window.config["layers"][0]["keys"]["5"]
+    menu.close()
+    window.layer_color.choose("#ff0000")                    # layer colour has swatches too
+    assert window.config["layers"][0]["color"] == "#ff0000"

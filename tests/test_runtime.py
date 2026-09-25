@@ -159,7 +159,25 @@ def test_companion_state_updates_leds():
     assert rt.companion_states[(1, 3)]["text"] == "Hi"
     link.sent.clear()
     rt._on_message({"t": "hello", "fw": "0.1.0"})
-    assert link.sent == [{"t": "led", "l": 1, "k": 3, "rgb": [1, 2, 3]}]
+    assert link.sent[0] == {"t": "led", "l": 1, "k": 3, "rgb": [1, 2, 3]}
+    assert link.sent[1]["t"] == "colors"                  # editor colours re-sent after a restart
+
+
+def test_colour_preview_follows_the_layout():
+    config = default_config()
+    config["layers"][0]["color"] = "#ff0000"
+    config["layers"][0]["keys"] = {"0": {"press": [{"type": "text", "text": "x"}]},
+                                   "1": {"color": "#00ff00", "press": []},
+                                   "2": {"press": []}}                     # empty: not assigned
+    link = FakeLink()
+    rt = Runtime(config, link=link, satellite_factory=FakeSatellite)
+    rt.push_colors()
+    assert link.sent == [{"t": "colors", "layers": [{"c": "#ff0000", "k": {"0": None, "1": "#00ff00"}}]}]
+    rt.push_colors()                                                       # unchanged: not re-sent
+    assert len(link.sent) == 1
+    config["layers"][0]["keys"]["0"]["color"] = "#0000ff"
+    rt.push_colors()
+    assert link.sent[-1]["layers"][0]["k"]["0"] == "#0000ff"
 
 
 def test_satellites_follow_companion_layers():

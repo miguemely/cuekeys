@@ -195,6 +195,8 @@ def main():
                                        msg.get("balance", engine.balance))
             elif kind == "led_test":
                 engine.set_test_color(msg.get("rgb"))
+            elif kind == "colors":
+                engine.set_preview(msg.get("layers"))
             elif kind == "reload":
                 supervisor.reload()
 

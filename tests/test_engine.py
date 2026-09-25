@@ -219,6 +219,32 @@ def test_leds_and_companion_layer():
     assert backend.leds[5] == (1, 2, 3)
 
 
+def test_colour_preview_from_the_editor():
+    layers = [
+        {"color": "#0000ff", "keys": {"0": {"press": [{"type": "text", "text": "x"}]},
+                                      "1": {"color": "#00ff00", "press": []}}},
+        {"mode": "companion", "keys": {}},
+    ]
+    engine, backend, clock = make(layers, {"brightness": 1.0, "led_gamma": 1.0})
+    assert backend.leds[0] == (0, 0, 255)
+    # layer turned red, key 1 recoloured, key 3 newly assigned (layer colour), key 1 of layer 2 local
+    engine.set_preview([{"c": "#ff0000", "k": {"0": None, "1": "#ffff00", "3": None}},
+                        {"c": None, "k": {"1": "#123456"}}])
+    assert backend.leds[0] == (255, 0, 0)
+    assert backend.leds[1] == (255, 255, 0)
+    assert backend.leds[3] == (255, 0, 0)
+    assert backend.leds[2] == (0, 0, 0)
+    engine.set_remote_color(1, 5, [1, 2, 3])
+    engine.set_layer(1)
+    assert backend.leds[1] == (0x12, 0x34, 0x56) and backend.leds[5] == (1, 2, 3)
+    engine.set_layer(0)
+    engine.set_preview(None)                     # back to the deployed layout
+    assert backend.leds[0] == (0, 0, 255) and backend.leds[3] == (0, 0, 0)
+    engine.set_preview([{"c": "#ff0000", "k": {"0": None}}])
+    engine.load({"device": {"brightness": 1.0, "led_gamma": 1.0}, "layers": layers})
+    assert engine.preview is None and backend.leds[0] == (0, 0, 255)     # a deploy ends the preview
+
+
 def test_led_gamma_balance_and_test_pattern():
     from cuekeys_engine.engine import color_lut
 

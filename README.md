@@ -56,15 +56,15 @@ cuekeys            # opens the editor
 2. Copy the contents of `cuekeys-firmware-<version>.zip` (from Releases, or built with `python scripts/build_firmware_bundle.py`) onto the `CIRCUITPY` drive. It contains the firmware and every library it needs (`pmk`, `adafruit_hid`, LED drivers).
    - Or, if the libraries are already on the drive: **Keypad → Install / update firmware** in the editor, or `cuekeys install-firmware`.
 3. **Unplug and replug the keypad once.** `boot.py` turns on the second USB serial port that the host app uses, and that only takes effect after a hard reset.
-4. Edit your layout and click **Keypad → Deploy layout to keypad** (Ctrl+D). The keypad reloads by itself.
+4. Edit your layout and click **Keypad → Deploy to keypad** (Ctrl+D). The keypad reloads by itself. Colour changes show on the keypad as you make them; Deploy (marked **•** while there are undeployed changes) updates what the keys do and keeps everything after the keypad restarts.
 
 Pick your keypad in **Settings → Keypad → Device**, or pass `cuekeys init --device <id>`. `cuekeys profiles` lists the supported devices; `cuekeys devices` shows which profile matches the board that's plugged in. To add a keypad that isn't listed, see [docs/devices.md](docs/devices.md).
 
 ## Using the editor
 
-- **Layers** (left): add, duplicate, reorder, and set a name, colour and mode (`local` or `companion`).
-- **Key grid** (centre): laid out like the physical pad, with the USB connector at the top. Click a key to edit it. Keys held down on the real keypad light up live.
-- **Key editor** (right): label and colour, plus three action lists:
+- **Layers** (left): add, duplicate, reorder, and set a name, colour and mode (`local` or `companion`). The layer colour applies to keys that don't have their own.
+- **Key grid** (centre): laid out like the physical pad, with the USB connector at the top. Click a key to edit it; **right-click** it for a colour menu (presets, custom, *Same as layer*) and copy / paste / clear. Keys held down on the real keypad light up live.
+- **Key editor** (right): label and colour (click for any colour, or use the swatches; right-click resets to the layer colour), plus three action lists:
   - **Press / tap**: runs when pressed. If the key also has Hold actions, it runs on a short tap instead.
   - **Hold**: runs once the key has been held for `hold_time_ms` (500 ms by default).
   - **Release**: runs when the key is released.

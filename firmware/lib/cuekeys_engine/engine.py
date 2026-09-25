@@ -107,6 +107,7 @@ class Engine:
         self.prev_layer = 0
         self.host_os = None
         self.remote_colors = {}  # (layer, key) -> rgb pushed by the host
+        self.preview = None      # host editor's colours, until the next deploy (see set_preview)
         self.load(config)
 
     # ------------------------------------------------------------------ config
@@ -126,6 +127,7 @@ class Engine:
             self.host_os = os_hint
         if self.layer >= len(self.layers):
             self.layer = 0
+        self.preview = None
         self.render()
 
     def key_config(self, index, layer=None):
@@ -362,9 +364,31 @@ class Engine:
             self.render_key(int(index))
 
     # ------------------------------------------------------------------- LEDs
+    def set_preview(self, layers):
+        """Show the editor's (not yet deployed) colours.
+
+        ``layers``: one ``{"c": layer colour, "k": {key: colour or None}}`` per
+        layer, listing the keys the editor has assigned; ``None`` ends the preview.
+        """
+        self.preview = layers or None
+        self.render()
+
+    def _preview_layer(self):
+        if self.preview is not None and self.layer < len(self.preview):
+            return self.preview[self.layer]
+        return None
+
     def key_color(self, index):
         if index in self.active:
             return self.pressed_color
+        preview = self._preview_layer()
+        if preview is not None:
+            keys = preview.get("k") or {}
+            if str(index) in keys:
+                return parse_color(keys[str(index)], parse_color(preview.get("c"), (40, 40, 40)))
+            if self.layer_mode() == "companion":
+                return self.remote_colors.get((self.layer, index), (0, 0, 0))
+            return (0, 0, 0)
         cfg = self.key_config(index)
         if not cfg:
             if self.layer_mode() == "companion":

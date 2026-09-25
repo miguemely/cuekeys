@@ -1,0 +1,42 @@
+# Changelog
+
+All notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/),
+and versions follow [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Added
+- **Overlay on every macOS Space and over full-screen apps.** It's made a non-activating panel with
+  all-Spaces collection behaviour. Setting: Overlay → "All desktops + full-screen apps".
+- **Overlay display choice:** main display, all displays, the display with the mouse pointer, or
+  selected displays (`overlay.screens`). It follows displays being plugged in and unplugged.
+- **Developer documentation:** `AGENTS.md`, `CONTRIBUTING.md`, and `docs/` (architecture, protocol,
+  extending, Companion, platform notes, roadmap).
+
+## [0.1.0]: first development version
+
+### Added
+- **CircuitPython firmware:**
+  - a layer and macro engine: a single ordered timeline, tap/hold keys, and automatic release of
+    held keys, notes, momentary layers and release payloads;
+  - USB HID keyboard and media keys;
+  - USB MIDI: notes, CC, program change, MIDI Show Control;
+  - a JSON-lines link to the host.
+- **Device profiles and firmware drivers**, so any keypad size or board can be used:
+  - built-in profiles for the Keybow 2040 (tested), the Pico RGB Keypad Base, and the Adafruit
+    MacroPad RP2040;
+  - generic `keypad_keys` / `keypad_matrix` drivers with NeoPixel support;
+  - a plugin folder, `$PMM_DEVICE_PATH`, and an entry point for adding more.
+- **LED colour correction:** gamma and per-channel white balance, with a live calibration dialog.
+- **Desktop app (PySide6):**
+  - a layout editor with a macro recorder;
+  - a dark theme and a custom-drawn keypad;
+  - a floating, semi-transparent overlay showing the current layer and held keys;
+  - deploying layouts and installing firmware to the CIRCUITPY drive.
+- **Bridges:** OSC, grandMA3 (OSC `/cmd`), grandMA2 (Telnet), and Bitfocus Companion:
+  - HTTP button presses;
+  - Satellite surfaces sized to the keypad, with the bottom row kept for PMK's own keys;
+  - page changes, page names, and location badges.
+- **`pmm` CLI:** `gui`, `overlay`, `bridge`, `validate`, `deploy`, `install-firmware`, `devices`,
+  `profiles`, `init`.
+- **GitLab CI/CD:** lint, a test matrix, the wheel, the firmware zip, desktop apps, and releases.

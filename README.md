@@ -128,10 +128,23 @@ pmm profiles                # supported keypad models, and your plugin folder
 
 ## Keypad ↔ host protocol
 
-Newline-separated JSON over the CircuitPython `usb_cdc.data` port.
+Newline-separated JSON over the CircuitPython `usb_cdc.data` port. The full message reference is in
+[docs/protocol.md](docs/protocol.md).
 
-- keypad → host: `hello`, `layer {i,name,count}`, `key {k,s,l}`, `osc {addr,args,target}`, `ma {cmd,console}`, `companion {page,row,column,op,target}`, `host`, `log`
-- host → keypad: `hello?`, `os {os}`, `layer {i}`, `press/release {k}`, `led {l,k,rgb}` (Companion colours), `reload`
+## Documentation
+
+| For | Read |
+|---|---|
+| Adding a keypad (device profiles, firmware drivers) | [docs/devices.md](docs/devices.md) |
+| How it fits together | [docs/architecture.md](docs/architecture.md) |
+| Serial protocol and layout file format | [docs/protocol.md](docs/protocol.md) |
+| Recipes: new actions, bridges, settings, CLI commands | [docs/extending.md](docs/extending.md) |
+| Companion integration details and quirks | [docs/companion.md](docs/companion.md) |
+| macOS / Windows / Linux / CircuitPython notes | [docs/platform-notes.md](docs/platform-notes.md) |
+| Known gaps and good next tasks | [docs/roadmap.md](docs/roadmap.md) |
+| Contributing, testing, releases | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| AI coding agents (orientation, invariants, gotchas) | [AGENTS.md](AGENTS.md) |
+| What changed | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Development
 

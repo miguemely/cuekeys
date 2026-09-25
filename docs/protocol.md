@@ -17,7 +17,7 @@ whenever the port (re)connects.
 
 | `t` | Fields | Meaning |
 |---|---|---|
-| `hello` | `fw` (version), `profile`, `num_keys`, `config_error` (string or null) | Keypad is up. The host re-pushes Companion LED colours after this |
+| `hello` | `fw` (version), `uid` (hardware id, = USB serial number), `profile`, `num_keys`, `config_error` (string or null) | Keypad is up. The host re-pushes Companion LED colours after this |
 | `layer` | `i`, `name`, `count` | Current layer changed (or was announced) |
 | `key` | `k` key number, `s` 1 = pressed / 0 = released, `l` layer at the time | Every physical (or host-injected) key edge |
 | `osc` | `addr`, `args` (list), `target` (name in `bridge.osc_targets`) | Send an OSC message |
@@ -25,7 +25,7 @@ whenever the port (re)connects.
 | `companion` | `page`, `row`, `column`, `op` (`down`/`up`/`press`), `target` | Press a Companion button over HTTP |
 | `companion_page` | `l` layer, `dir` 1 = next / 0 = previous | Page the Companion surface of layer `l` |
 | `overlay` | `op` (`cycle`/`toggle`/`show`/`hide`), `levels` (list or null) | Control the on-screen overlay |
-| `host` | `event`, `data` | Custom event for host listeners (`Runtime.emit("host", …)`) |
+| `host` | `event`, `data` | Custom event for host listeners (`session.emit("host", …)`) |
 | `log` | `level`, `msg` | An action failed on the keypad (never fatal) |
 
 ## Host → keypad
@@ -44,8 +44,8 @@ whenever the port (re)connects.
 ## Adding a message
 
 1. Keypad → host: send it from the engine (`backend.host({...})`) or from `code.py`. Handle it in
-   `Runtime._on_message`, and emit an event if the UI cares.
-2. Host → keypad: send it with `runtime.link.send({...})`. Handle it in `code.py`'s message loop and
+   `KeypadSession._on_message`, and emit an event if the UI cares.
+2. Host → keypad: send it with `session.link.send({...})`. Handle it in `code.py`'s message loop and
    put the logic in the engine, so it's testable.
 3. Keep it backward compatible: new optional fields are fine. Don't change the meaning of existing
    fields.

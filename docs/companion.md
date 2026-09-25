@@ -19,13 +19,13 @@ state, events). Tested against Companion **4.2.0** (Satellite API 1.9) and **5.0
 ```
 ← BEGIN CompanionVersion="5.0.6+…" ApiVersion="1.12.0"
 ← CAPS SUBSCRIPTIONS=0 NONSQUARE=1 BITMAP_FORMATS="rgb,png,webp"     (API ≥ 1.10 only)
-→ ADD-DEVICE DEVICEID=cuekeys-example PRODUCT_NAME="CueKeys Companion" KEYS_TOTAL=12 KEYS_PER_ROW=4
+→ ADD-DEVICE DEVICEID=ck-e35b8c2b-example PRODUCT_NAME="CueKeys FOH · Companion" KEYS_TOTAL=12 KEYS_PER_ROW=4
              BITMAPS=0 COLORS=hex TEXT=true TEXT_STYLE=true CAN_CHANGE_PAGE=true
-← ADD-DEVICE OK DEVICEID="cuekeys-example"
-← KEY-STATE DEVICEID="cuekeys-example" KEY=0 LOCATION="4/0/0" TYPE="BUTTON" COLOR="#ff0000"
+← ADD-DEVICE OK DEVICEID="ck-e35b8c2b-example"
+← KEY-STATE DEVICEID="ck-e35b8c2b-example" KEY=0 LOCATION="4/0/0" TYPE="BUTTON" COLOR="#ff0000"
             TEXTCOLOR="#ffffff" TEXT="<base64>" FONT_SIZE="auto" PRESSED=0
-→ KEY-PRESS DEVICEID=cuekeys-example KEY=0 PRESSED=true
-→ CHANGE-PAGE DEVICEID=cuekeys-example DIRECTION=1                        (API ≥ 1.10)
+→ KEY-PRESS DEVICEID=ck-e35b8c2b-example KEY=0 PRESSED=true
+→ CHANGE-PAGE DEVICEID=ck-e35b8c2b-example DIRECTION=1                        (API ≥ 1.10)
 ↔ PING x / PONG x                                                       (every 2 s)
 ```
 
@@ -38,9 +38,18 @@ Keys you assign locally inside the Companion region override Companion.
 `profile.satellite_index(key, rotation)` and `profile.key_from_satellite(index, rotation)` convert
 between them and keypad key numbers.
 
-**Surface ids.** The id is `layer.companion_id`. The editor gives each new Companion layer a random
-`ck-xxxxxxxx`, so the id survives reordering and renaming. If a layer has no id, it falls back to
-`cuekeys-<hostname>-l<index>`.
+**Surface ids** are `ck-<keypad>-<layer>`:
+
+- `<keypad>` is the last 8 hex digits of the keypad's hardware id, so two keypads with the same layout
+  are two surfaces, and a keypad keeps its surface (and its Companion page settings) on any computer.
+  The virtual "No keypad" uses the host name instead.
+- `<layer>` is `layer.companion_id` (the editor gives new Companion layers a random 6-hex id, so it
+  survives reordering and renaming), or `l<index>` without one. Ids from before keypad identity
+  (`ck-…`, `cuekeys-…`, `pmk-…`) lose that prefix: `cuekeys-example` → `ck-e35b8c2b-example`.
+
+The surface name is `CueKeys <keypad name> · <layer name>`; rename a keypad in the editor
+(Keypad → Rename keypad…) or with `cuekeys keypads rename`. All surfaces on one Companion server share
+one Satellite connection (`Hub.sync_satellites`).
 
 **State kept per key:** `color`, `text`, `text_color`, `type` (BUTTON / PAGEUP / PAGEDOWN / PAGENUM),
 `pressed`, `location` and `page`, plus `page_name` added by the runtime.
@@ -53,7 +62,7 @@ between them and keypad key numbers.
 2. **A duplicate surface id gets silence on 5.x and `ERROR … "Device exists elsewhere"` on 4.x.** This
    happens when another process (a second app instance, a hung test run) holds the same
    `DEVICEID`. The client resends after 5 s when there's no reply, retries every 10 s on an error,
-   and logs a hint. `Runtime.companion_status()` returns `busy` and the UI pill turns amber.
+   and logs a hint. `KeypadSession.companion_status()` returns `busy` and the UI pill turns amber.
 3. **Re-adding an id on the same connection is rejected.** To rename or resize a surface, send
    `REMOVE-DEVICE` and then `ADD-DEVICE` (see `add_device()`).
 4. **Page names are never sent over Satellite.** Page-number buttons (`TYPE=PAGENUM`) arrive with

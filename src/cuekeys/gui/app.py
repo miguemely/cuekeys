@@ -50,44 +50,73 @@ def _load_config(path):
     return cfg.default_config(), None
 
 
+def make_hub(path=None, port=None):
+    """Hub for the GUI: every connected keypad, or just ``port`` when given.
+
+    Returns (hub, session to show first). Keypads without a layout of their own
+    use ``path`` (else the last file, else a blank layout).
+    """
+    from ..keypads import KeypadStore
+    from ..runtime import Hub, Runtime
+
+    explicit = path
+    config, path = _load_config(path)
+    if port:
+        session = Runtime(config, port=port, store=KeypadStore())
+        session.layout_path = path
+        return session.hub, session
+    hub = Hub(default_config=config, store=KeypadStore(), layout_loader=cfg.load)
+    hub.default_path = path
+    if path:
+        hub._layouts[str(path)] = config
+    return hub, explicit
+
+
+def _first_session(hub, explicit):
+    session = next(iter(hub.sessions.values()))
+    if explicit and session.config is not hub.default_config:
+        # A file named on the command line is what the user wants to edit.
+        hub.assign_layout(session, hub.default_config, hub.default_path)
+    return session
+
+
 def run_editor(path=None, port=None):
     app = _make_app()
-    from ..runtime import Runtime
     from .common import RuntimeSignals
     from .editor import MainWindow
 
-    config, path = _load_config(path)
-    runtime = Runtime(config, port=port)
-    signals = RuntimeSignals(runtime)
-    window = MainWindow(runtime, signals, path)
-    runtime.start()
+    hub, first = make_hub(path, port)
+    signals = RuntimeSignals(hub)
+    hub.start()                      # finds keypads (or adds the "No keypad" stand-in)
+    session = first if port else _first_session(hub, first)
+    window = MainWindow(session, signals)
     window.show()
     try:
         return app.exec()
     finally:
-        runtime.stop()
+        hub.stop()
 
 
 def run_overlay(path=None, port=None):
-    """Overlay + bridge only, no editor window (e.g. on a show machine)."""
+    """Overlays + bridges only, no editor window (e.g. on a show machine)."""
     app = _make_app()
     from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-    from ..runtime import Runtime
     from .common import RuntimeSignals
-    from .overlay import Overlay
+    from .overlay import OverlayGroup
 
-    config, path = _load_config(path)
-    runtime = Runtime(config, port=port)
-    signals = RuntimeSignals(runtime)
-    overlay = Overlay(runtime, signals)
-    runtime.start()
-    overlay.show()
+    hub, first = make_hub(path, port)
+    signals = RuntimeSignals(hub)
+    hub.start()
+    if not port:
+        _first_session(hub, first)
+    overlays = OverlayGroup(hub, signals)
+    overlays.show()
 
     if QSystemTrayIcon.isSystemTrayAvailable():
         tray = QSystemTrayIcon(app.style().standardIcon(app.style().StandardPixmap.SP_ComputerIcon))
         menu = QMenu()
-        menu.addAction("Show / hide overlay", lambda: overlay.setVisible(not overlay.isVisible()))
+        menu.addAction("Show / hide overlay", lambda: overlays.setVisible(not overlays.isVisible()))
         menu.addAction("Quit", app.quit)
         tray.setContextMenu(menu)
         tray.setToolTip("CueKeys overlay")
@@ -97,4 +126,4 @@ def run_overlay(path=None, port=None):
     try:
         return app.exec()
     finally:
-        runtime.stop()
+        hub.stop()

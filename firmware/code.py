@@ -14,6 +14,7 @@ Requires /lib/adafruit_hid plus whatever the driver needs (e.g. pmk).
 import json
 import time
 
+import microcontroller
 import supervisor
 import usb_cdc
 import usb_hid
@@ -25,6 +26,9 @@ from adafruit_hid.keycode import Keycode
 from cuekeys_engine.engine import VERSION, Engine
 
 CONFIG_PATH = "/config.json"
+# Unique per chip; CircuitPython also uses it as the USB serial number, so the
+# host can match this keypad's serial ports and CIRCUITPY drive to it.
+KEYPAD_UID = "".join("%02X" % b for b in microcontroller.cpu.uid)
 
 
 def load_config():
@@ -148,7 +152,7 @@ def main():
             hardware.set_led(key, (64, 0, 0))
 
     def hello():
-        link.send({"t": "hello", "fw": VERSION,
+        link.send({"t": "hello", "fw": VERSION, "uid": KEYPAD_UID,
                    "profile": device.get("profile") or device.get("hardware", "keybow2040"),
                    "num_keys": hardware.num_keys,
                    "config_error": error})

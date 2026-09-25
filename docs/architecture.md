@@ -85,25 +85,52 @@ layout.json (host file) ──load──► merge_defaults ──► in-memory c
                               (device + layers only, profile resolved to driver/num_keys/led_*)
 ```
 
-- The GUI edits the **same dict** the `Runtime` holds, so changes show on the overlay immediately.
-  Call `runtime.set_config(config)` after structural changes (layers added or removed, modes, the
-  device) so Companion surfaces re-sync.
+- The GUI edits the **same dict** the keypad session holds, so changes show on the overlay
+  immediately. Call `hub.config_changed(config)` after structural changes (layers added or removed,
+  modes, the device) so every keypad using that layout re-syncs its Companion surfaces.
+- One layout file is loaded **once** (`Hub.load_layout`, cached by path), so keypads that share a file
+  share one dict and one set of edits.
 - `validate()` checks everything against `ACTION_SPECS` and the device profile (key range,
   `companion_rows`, LED settings). The editor forms are *generated* from `ACTION_SPECS`.
 
-### Runtime (`runtime.py`)
+### Hub and keypad sessions (`runtime.py`, `keypads.py`)
+
+Several keypads can be connected at once.
+
+- **Identity.** A keypad is its RP2040 hardware id (`microcontroller.cpu.uid`). The same value is the
+  USB serial number of its serial ports and the `UID:` line of `boot_out.txt`, so the host matches
+  ports and CIRCUITPY drives to a keypad without opening anything (`device.list_keypads()`,
+  `device.pick_drive(uid=…)`). The firmware also reports it in `hello` (`uid`).
+- **`Hub`** owns the shared parts: keypad discovery (a scan every 2 s; hot-plug and port renames),
+  the OSC socket, the worker thread, and **one Satellite connection per Companion server** that
+  carries every keypad's surfaces. While no keypad is known it keeps a **virtual keypad**
+  (`VIRTUAL_UID`, shown as "No keypad") so the editor has something to edit; it's dropped when a real
+  keypad arrives, and the editor moves to that keypad with the same layout.
+- **`KeypadSession`** is one keypad: its `DeviceLink`, its layout (`config`, `layout_path`), and
+  live state. The GUI edits one session at a time (toolbar picker).
+- **`KeypadStore`** (`keypads.py`, `<config dir>/cuekeys/keypads.json`) keeps what belongs to the
+  physical unit rather than the shareable layout: `name`, the assigned `layout` file, LED calibration
+  (`led_gamma`, `led_balance`, which win over the layout's at deploy), and `last_seen`.
+- `Runtime(config, port=…)` still exists for single-keypad use (`--port`, tests): it returns the
+  session of a one-keypad hub without discovery.
 
 - **Threads:**
-  - `DeviceLink` reader (serial);
-  - one `SatelliteClient` per Companion target;
+  - one `DeviceLink` reader per keypad (serial);
+  - `cuekeys-discovery` (keypad scan);
+  - one `SatelliteClient` per Companion server;
   - `cuekeys-bridge` worker for blocking jobs: grandMA2 Telnet, Companion HTTP presses, page-name
     lookups.
   - OSC sends are non-blocking UDP and happen inline.
-- **Events.** `Runtime.emit(event, **data)` runs on those threads. The GUI wraps them with
-  `RuntimeSignals`, a Qt signal that queues onto the GUI thread. Events: `status`, `layer`, `key`,
-  `companion`, `overlay`, `host`, `log` (docstring at the top of `runtime.py`).
-- **State.** `layer`, `pressed` (key → layer it was pressed on), `companion_states[(layer, key)]`,
-  `companion_pages[layer]`, `companion_page_names[(target, page)]`, `connected`, `firmware`.
+- **Events.** `session.emit(event, **data)` runs on those threads and adds `keypad` (the uid) to
+  every event. The GUI wraps them with `RuntimeSignals`, a Qt signal that queues onto the GUI thread,
+  and filters by `keypad`. Events: `status`, `layer`, `key`, `companion`, `overlay`, `host`, `log`,
+  plus `keypads` (added / removed / renamed) and `config` (a keypad got a new layout). See the
+  docstring at the top of `runtime.py`.
+- **State per session.** `layer`, `pressed` (key → layer it was pressed on),
+  `companion_states[(layer, key)]`, `companion_pages[layer]`, `connected`, `firmware`. Page names are
+  cached on the hub per (Companion server, page).
+- **Overlays.** `OverlayGroup` (`gui/overlay.py`) keeps one `Overlay` per keypad, stacked away from
+  the corner; with several keypads each header starts with the keypad's name.
 - **No keypad?** `select_layer` / `press_key` fall back to local previews, so overlay clicks can
   still drive Companion.
 

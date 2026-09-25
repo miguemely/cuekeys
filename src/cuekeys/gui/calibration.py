@@ -56,13 +56,17 @@ class _Slider(QWidget):
 
 
 class CalibrationDialog(QDialog):
-    def __init__(self, config, runtime, parent=None):
+    def __init__(self, config, runtime, parent=None, keypad=None, on_save=None):
+        """``keypad``: this keypad's stored settings (they win over the layout's);
+        ``on_save(gamma, balance)`` stores the result somewhere other than the layout."""
         super().__init__(parent)
         self.setWindowTitle("LED colour balance")
         self.config = config
         self.runtime = runtime
+        self.on_save = on_save
         self.profile = devices.profile_for(config)
-        device = config.setdefault("device", {})
+        device = dict(config.setdefault("device", {}))
+        device.update({k: v for k, v in (keypad or {}).items() if k in ("led_gamma", "led_balance")})
         self.original = (float(device.get("led_gamma", self.profile.led_gamma)),
                          [float(v) for v in device.get("led_balance", self.profile.led_balance)])
 
@@ -126,7 +130,7 @@ class CalibrationDialog(QDialog):
         self.runtime.link.send({"t": "led_test", "rgb": pattern})
         self.status.setText("" if sent else
                             "The keypad isn't connected, so there's no live preview. "
-                            "Values still save to the layout.")
+                            "Values are still saved.")
 
     def _reset(self):
         self.gamma.set_value(round(self.profile.led_gamma * 100))
@@ -138,8 +142,11 @@ class CalibrationDialog(QDialog):
         self.runtime.link.send({"t": "led_test", "rgb": None})
         if result == QDialog.Accepted:
             gamma, balance = self.values()
-            device = self.config["device"]
-            device["led_gamma"], device["led_balance"] = gamma, balance
+            if self.on_save is not None:
+                self.on_save(gamma, balance)
+            else:
+                device = self.config["device"]
+                device["led_gamma"], device["led_balance"] = gamma, balance
         else:
             gamma, balance = self.original
             self.runtime.link.send({"t": "led_cal", "gamma": gamma, "balance": balance})

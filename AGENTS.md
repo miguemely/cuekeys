@@ -42,7 +42,8 @@ the sandbox, not the code.
 | `firmware/lib/cuekeys_drivers/` | Hardware drivers (`poll` / `set_led` / `show` interface) |
 | `src/cuekeys/config.py` | Layout schema (`ACTION_SPECS`), defaults, validation, prune, firmware view |
 | `src/cuekeys/devices/` | Device profiles (grid geometry, driver, LEDs) and plugin loading |
-| `src/cuekeys/runtime.py` | Host brain: serial link + OSC/MA/Companion bridges + live state + events |
+| `src/cuekeys/runtime.py` | Host brain: `Hub` (keypad discovery, shared OSC/MA/Companion bridges) and one `KeypadSession` per keypad (serial link, layout, live state, events) |
+| `src/cuekeys/keypads.py` | `KeypadStore`: per-keypad name, layout file and LED calibration, keyed by hardware id |
 | `src/cuekeys/link.py` | Threaded JSON-lines serial link with auto-reconnect |
 | `src/cuekeys/companion.py` | Companion HTTP API + Satellite protocol client |
 | `src/cuekeys/grandma.py`, `osc.py` | grandMA2 Telnet, grandMA3 OSC address, dependency-free OSC encoder |
@@ -74,7 +75,7 @@ the sandbox, not the code.
    `devices.profile_for(config)` and its `key_to_cell` / `cell_to_key` / `satellite_index` /
    `display_size` (all rotation-aware). There's no `layout.py` any more.
 6. **Tests never touch real services or hardware.** Use `FakeLink`, and pass
-   `satellite_factory=FakeSatellite` to `Runtime` (a real `SatelliteClient` would register surfaces
+   `satellite_factory=FakeSatellite` to `Runtime` / `Hub` (a real `SatelliteClient` would register surfaces
    on whatever Companion is running on 127.0.0.1). Don't write to `/Volumes/CIRCUITPY` in tests.
 7. **GUI tests must not open modal dialogs.** A `QMessageBox` blocks forever under pytest. The
    `window` fixture patches `_confirm_discard`; do the same for anything new that can prompt.
@@ -90,6 +91,9 @@ the sandbox, not the code.
 - **Companion 5 ignores `ADD-DEVICE` sent before its `CAPS` line.** It also stays *silent* (no
   error) when another client holds the same surface id. The client waits for `CAPS` on API ≥ 1.10
   and resends after 5 s. See [docs/companion.md](docs/companion.md).
+- **Every runtime event carries `keypad`.** Listeners that show one keypad (editor, `Overlay`) must
+  ignore events for other keypads. Tests with several keypads use `Hub(..., discover=False,
+  link_factory=…)` and `hub.scan([...])` with fake port lists (see `tests/test_hub.py`).
 - **The Satellite protocol never sends page names.** They come from the HTTP variable
   `internal:page_number_<n>_name`.
 - **AppKit throws if `CanJoinAllSpaces` is combined with Qt's `MoveToActiveSpace`.** Clear the

@@ -43,8 +43,9 @@ Example: a `"serial_write"` action that sends text to the host, which writes it 
    `Engine.execute()`. If the action has an "off" state, push an undo callable into `undo`, and it
    runs on release automatically. Keep to the CircuitPython subset.
 3. **Host (only for network or host-side actions):** have the engine send
-   `backend.host({"t": "<type>", ...})` and handle it in `Runtime._on_message`. Put blocking I/O on
-   the worker thread with `self._jobs.put((kind, payload))`, and handle it in `Runtime._work`.
+   `backend.host({"t": "<type>", ...})` and handle it in `KeypadSession._on_message`. Put blocking
+   I/O on the hub's worker thread with `self.hub.jobs.put((kind, (self, ...)))` (the payload starts
+   with the session), and handle it in `Hub._work`.
 4. **UI colour:** map it to a category in `gui/theme.py` `ACTION_CATEGORY`.
 5. **Tests:** engine behaviour in `test_engine.py` (fake backend and clock); host handling in
    `test_runtime.py`; `test_config.py` if validation changed. The action-parity test catches a
@@ -63,13 +64,15 @@ Example: a vMix, OBS, QLab or ETC Eos integration.
    `test_osc_grandma.py`).
 2. Add its settings under `bridge.<name>` in `config.default_config()`. Settings merge in
    automatically through `merge_defaults`.
-3. Add an action type that sends a `host` message (recipe above), and route it in `Runtime`:
-   non-blocking sends inline, blocking ones through `_jobs`.
+3. Add an action type that sends a `host` message (recipe above), and route it in `KeypadSession`:
+   non-blocking sends inline, blocking ones through `hub.jobs`. Connections are shared by all
+   keypads, so they live on the `Hub`.
 4. For a long-lived connection (like Companion Satellite), follow `SatelliteClient`:
    - its own daemon thread with retry;
-   - `on_status` / `on_key_state` callbacks into `Runtime`, which `emit`s events;
-   - `start()` / `stop()` called from `Runtime.start()` / `Runtime.stop()` and re-synced in
-     `set_config()`.
+   - `on_status` / `on_key_state` callbacks into the `Hub`, which routes them to the right
+     session (see `Hub._devices`) and `emit`s events;
+   - `start()` / `stop()` called from `Hub.start()` / `Hub.stop()` and re-synced when a layout
+     changes (`Hub.sync_satellites()`).
 5. Add a settings tab or fields in `gui/settings.py` (declarative tuples), and a status pill in
    `MainWindow._update_status` if connection state matters.
 6. Tests must use fakes or local servers only. Never a real instance.
@@ -96,7 +99,7 @@ in `build_parser()` with `add(...)`. `OSError`, `RuntimeError` and `KeyError` be
 - Key rendering is shared. Change `cell_content` / `cell_badge` / `paint_key` in `gui/common.py`, and
   the editor keypad and every overlay window follow.
 - Live data arrives as runtime events. Connect to `signals.event` and react to `(name, data)`. Don't
-  call Qt from `Runtime` threads.
+  call Qt from runtime threads. Events carry `keypad`; ignore other keypads' events in views of one keypad.
 - Any size, gap or rotation logic must use the device profile (`profile.display_size`,
   `key_to_cell`, …).
 - Style comes from `gui/theme.py` tokens and QSS object names: `primary`, `flat`, `pill`, `muted`,

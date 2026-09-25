@@ -445,8 +445,12 @@ def save(config, path):
     os.replace(tmp, path)
 
 
-def firmware_view(config):
-    """The subset of a config that the keypad needs (keeps secrets off the drive)."""
+def firmware_view(config, keypad=None):
+    """The subset of a config that the keypad needs (keeps secrets off the drive).
+
+    ``keypad`` is that keypad's own settings (``KeypadStore``): its LED
+    calibration wins over the layout's, which wins over the device profile's.
+    """
     device = dict(config.get("device", {}))
     device.pop("hardware", None)
     # The keypad needs the resolved driver details, not just the profile id.
@@ -456,6 +460,9 @@ def firmware_view(config):
             device.setdefault(key, value)
         else:
             device[key] = value
+    for key in ("led_gamma", "led_balance"):
+        if keypad and keypad.get(key) is not None:
+            device[key] = keypad[key]
     return {
         "version": config.get("version", CONFIG_VERSION),
         "device": device,

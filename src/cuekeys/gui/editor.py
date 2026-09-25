@@ -30,9 +30,10 @@ from PySide6.QtWidgets import (
 
 from .. import __version__, device, devices
 from .. import config as cfg
+from ..keypads import VIRTUAL_UID, short_id
 from .actions import ActionListEditor
 from .common import app_settings, cell_badge, cell_content, paint_key, text_color_for, to_qcolor
-from .overlay import Overlay
+from .overlay import OverlayGroup
 from .settings import SettingsDialog
 from .theme import T, repolish
 
@@ -257,27 +258,41 @@ class KeyPad(QWidget):
 
 class MainWindow(QMainWindow):
     def __init__(self, runtime, signals, path=None):
+        """``runtime``: the keypad session to start with; the editor can switch
+        to any keypad of its hub (toolbar picker)."""
         super().__init__()
-        self.runtime = runtime
+        self.runtime = runtime            # the keypad being edited
+        self.hub = runtime.hub
         self.signals = signals
         self.config = runtime.config
+        path = path or runtime.layout_path
         self.path = Path(path) if path else None
         self.dirty = False
         self.layer_index = 0
         self.key = 0
         self.pressed = set()
         self.settings = app_settings()
-        self.overlay = Overlay(runtime, signals)
-        self.overlay.visibility_changed.connect(lambda on: self.overlay_action.setChecked(on))
+        self.overlays = OverlayGroup(self.hub, signals)
+        self.overlays.visibility_changed.connect(lambda _on: self._sync_overlay_action())
 
         self._build_menus()
         self._build_toolbar()
         self._build_ui()
         signals.event.connect(self._on_event)
         self._load_into_ui()
-        if self.config.get("overlay", {}).get("enabled", True):
-            self.overlay.show()
+        self._refresh_keypads()
+        self.overlays.show()           # each keypad's layout says whether its overlay is enabled
         self.resize(1280, 800)
+
+    @property
+    def overlay(self):
+        """The overlay of the keypad being edited."""
+        return self.overlays.get(self.runtime.uid)
+
+    @property
+    def keypad_uid(self):
+        """Hardware id for drive/port lookups; None for the virtual keypad."""
+        return None if self.runtime.uid == VIRTUAL_UID else self.runtime.uid
 
     # ---------------------------------------------------------------- UI
     def _build_toolbar(self):
@@ -293,6 +308,14 @@ class MainWindow(QMainWindow):
         bar.widgetForAction(self.act_deploy).setObjectName("primary")
         bar.addAction(self.act_settings)
         bar.addAction(self.overlay_action)
+        bar.addSeparator()
+        self.keypad_combo = QComboBox()
+        self.keypad_combo.setToolTip("Keypad being edited. Each keypad has its own layout, "
+                                     "overlay and Companion surfaces.")
+        self.keypad_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.keypad_combo.activated.connect(
+            lambda i: self.switch_keypad(self.keypad_combo.itemData(i)))
+        bar.addWidget(self.keypad_combo)
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         bar.addWidget(spacer)
@@ -465,6 +488,8 @@ class MainWindow(QMainWindow):
         action(m, "&Install / update firmware…", self.install_firmware)
         action(m, "Open CIRCUITPY drive", self.open_drive)
         action(m, "&Reload keypad", lambda: self.runtime.link.send({"t": "reload"}))
+        m.addSeparator()
+        self.act_rename = action(m, "Re&name keypad…", self.rename_keypad)
 
         m = self.menuBar().addMenu("&View")
         self.overlay_action = action(m, "Overlay", self.toggle_overlay, "Ctrl+Shift+O")
@@ -517,16 +542,16 @@ class MainWindow(QMainWindow):
     def _changed(self):
         self._set_dirty(True)
         self._render_grid()
-        self.overlay.update()
+        self.overlays.update()
 
     def _load_into_ui(self):
-        self.runtime.set_config(self.config)
+        self.hub.config_changed(self.config)
         self.layer_index = min(self.layer_index, len(self.config["layers"]) - 1)
         self._refresh_layers()
         self.layer_list.setCurrentRow(self.layer_index)
         self._layer_selected(self.layer_index)
         self._set_dirty(self.dirty)
-        self.overlay.apply_settings()
+        self.overlays.apply_settings()
 
     @staticmethod
     def _layer_item_text(index, layer):
@@ -612,7 +637,7 @@ class MainWindow(QMainWindow):
         mode = self.layer_mode.currentData()
         layer["mode"] = mode
         if mode == "companion":
-            layer.setdefault("companion_id", "ck-" + uuid.uuid4().hex[:8])
+            layer.setdefault("companion_id", uuid.uuid4().hex[:6])
             layer["companion_rows"] = self.layer_rows.currentData()
             target = self.layer_target.text().strip()
             if target:
@@ -624,7 +649,7 @@ class MainWindow(QMainWindow):
         if item is not None:
             item.setText(self._layer_item_text(self.layer_index, layer))
             item.setIcon(swatch_icon(layer.get("color")))
-        self.runtime.set_config(self.config)
+        self.hub.config_changed(self.config)
         self._update_status()
         self._changed()
 
@@ -639,7 +664,7 @@ class MainWindow(QMainWindow):
         layer["name"] = layer.get("name", "") + " copy"
         layer.pop("companion_id", None)
         if layer.get("mode") == "companion":
-            layer["companion_id"] = "ck-" + uuid.uuid4().hex[:8]
+            layer["companion_id"] = uuid.uuid4().hex[:6]
         self.config["layers"].insert(self.layer_index + 1, layer)
         self.layer_index += 1
         self._layers_changed()
@@ -663,7 +688,7 @@ class MainWindow(QMainWindow):
             self._layers_changed()
 
     def _layers_changed(self):
-        self.runtime.set_config(self.config)
+        self.hub.config_changed(self.config)
         self._update_status()
         self._refresh_layers()
         self._layer_selected(self.layer_index)
@@ -726,6 +751,13 @@ class MainWindow(QMainWindow):
 
     # ---------------------------------------------------------------- runtime
     def _on_event(self, name, data):
+        if name == "keypads":
+            self._keypads_changed(data)
+            return
+        if data.get("keypad", self.runtime.uid) != self.runtime.uid:
+            if name == "status":
+                self._refresh_keypads()
+            return
         if name == "key":
             (self.pressed.add if data["pressed"] else self.pressed.discard)(data["key"])
             self._render_grid()
@@ -740,6 +772,7 @@ class MainWindow(QMainWindow):
             if not data.get("connected"):
                 self.pressed.clear()
             self._update_status()
+            self._refresh_keypads()
         elif name == "log":
             self.statusBar().showMessage(data.get("message", ""), 8000)
 
@@ -750,13 +783,87 @@ class MainWindow(QMainWindow):
         pill.setProperty("state", state)
         repolish(pill)
 
+    # ---------------------------------------------------------------- keypads
+    def _keypad_text(self, session):
+        if session.uid == VIRTUAL_UID:
+            return "No keypad"
+        return "%s %s" % ("●" if session.connected else "○", session.name)
+
+    def _refresh_keypads(self):
+        combo = self.keypad_combo
+        combo.blockSignals(True)
+        combo.clear()
+        for uid, session in list(self.hub.sessions.items()):
+            combo.addItem(self._keypad_text(session), uid)
+            combo.setItemData(combo.count() - 1,
+                              "%s\n%s" % (session.name, uid if uid != VIRTUAL_UID else
+                                           "Plug in a keypad to edit it"), Qt.ToolTipRole)
+        combo.setCurrentIndex(max(0, combo.findData(self.runtime.uid)))
+        combo.blockSignals(False)
+        self.act_rename.setEnabled(self.runtime.uid != VIRTUAL_UID)
+
+    def _keypads_changed(self, data):
+        removed = data.get("removed")
+        if removed and removed == self.runtime.uid and self.hub.sessions:
+            # e.g. the virtual stand-in went away because a real keypad arrived:
+            # keep editing the same layout on it when it uses that layout.
+            sessions = list(self.hub.sessions.values())
+            same = [s for s in sessions if s.config is self.config]
+            self._bind(same[0] if same else sessions[0], force=True)
+        self._refresh_keypads()
+        self._update_status()
+
+    def switch_keypad(self, uid):
+        session = self.hub.sessions.get(uid)
+        if session is None or session is self.runtime:
+            return
+        if session.config is not self.config and not self._confirm_discard():
+            self._refresh_keypads()          # put the picker back
+            return
+        self._bind(session)
+
+    def _bind(self, session, force=False):
+        """Edit ``session``'s keypad (and its layout)."""
+        self.runtime = session
+        self.pressed = {k for k in session.pressed}
+        if session.config is not self.config or force:
+            if session.config is not self.config:
+                self.config = session.config
+                self.dirty = False
+                self.layer_index = 0
+            path = session.layout_path
+            self.path = Path(path) if path else self.path if force else None
+            self._load_into_ui()
+        self.overlay_action.setChecked(self.config.get("overlay", {}).get("enabled", True))
+        self._refresh_keypads()
+        self._update_status()
+        self._render_grid()
+
+    def rename_keypad(self):
+        from PySide6.QtWidgets import QInputDialog
+
+        if self.runtime.uid == VIRTUAL_UID:
+            return
+        name, ok = QInputDialog.getText(
+            self, "Rename keypad",
+            "Name for keypad %s (shown here, on the overlay and in Companion):" % short_id(self.runtime.uid),
+            text=self.hub.store.get(self.runtime.uid).get("name", "") if self.hub.store else "")
+        if ok:
+            self.hub.rename(self.runtime.uid, name)
+
+    def _sync_overlay_action(self):
+        overlay = self.overlay
+        self.overlay_action.setChecked(bool(overlay and overlay.isVisible()))
+
     def _update_status(self):
         rt = self.runtime
-        if rt.connected:
+        if rt.uid == VIRTUAL_UID:
+            self._set_pill(self.pill_keypad, "○ Keypad", "bad", "No keypad connected")
+        elif rt.connected:
             self._set_pill(self.pill_keypad, "● Keypad", "ok",
-                           "%s, firmware %s" % (rt.port, rt.firmware or "?"))
+                           "%s (%s)\n%s, firmware %s" % (rt.name, rt.uid, rt.port, rt.firmware or "?"))
         else:
-            self._set_pill(self.pill_keypad, "○ Keypad", "bad", "Keypad not connected")
+            self._set_pill(self.pill_keypad, "○ Keypad", "bad", "%s is not connected" % rt.name)
         if rt.satellites:
             states = {t: rt.companion_status(t) for t in rt.satellites}
             worst = "offline" if "offline" in states.values() else (
@@ -773,7 +880,7 @@ class MainWindow(QMainWindow):
     def toggle_overlay(self):
         on = self.overlay_action.isChecked()
         self.config.setdefault("overlay", {})["enabled"] = on
-        self.overlay.setVisible(on)
+        self.overlays.setVisible(True)        # re-applies every keypad's "enabled"
         self._set_dirty(True)
 
     # ---------------------------------------------------------------- files
@@ -787,12 +894,14 @@ class MainWindow(QMainWindow):
         return answer == QMessageBox.Discard
 
     def _replace_config(self, config, path):
-        self.config.clear()
-        self.config.update(config)  # runtime shares this dict
+        """Give the current keypad a different layout (other keypads keep theirs)."""
+        self.config = config
         self.path = Path(path) if path else None
         self.dirty = False
         self.layer_index = 0
+        self.hub.assign_layout(self.runtime, config, str(self.path) if self.path else None)
         self._load_into_ui()
+        self.overlay_action.setChecked(config.get("overlay", {}).get("enabled", True))
         if path:
             self.settings.setValue("last_file", str(path))
 
@@ -827,6 +936,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Save", str(err))
             return False
         self.settings.setValue("last_file", str(self.path))
+        if self.runtime.layout_path != str(self.path):
+            self.hub.assign_layout(self.runtime, self.config, str(self.path))
         self._set_dirty(False)
         self.statusBar().showMessage("Saved %s" % self.path, 4000)
         return True
@@ -844,9 +955,8 @@ class MainWindow(QMainWindow):
             new = dialog.result_config
             self.config.clear()
             self.config.update(new)
-            self.runtime.set_config(self.config)
-            self.overlay.apply_settings()
-            self.overlay.setVisible(self.config["overlay"].get("enabled", True))
+            self.hub.config_changed(self.config)
+            self.overlays.apply_settings()
             self.overlay_action.setChecked(self.config["overlay"].get("enabled", True))
             # The device (grid size) may have changed: refresh layer + key panels.
             self._layer_selected(self.layer_index)
@@ -863,7 +973,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Fix these first", "\n".join(problems[:20]))
             return
         try:
-            target = device.deploy_config(self.config)
+            target = device.deploy_config(self.config, uid=self.keypad_uid, keypad=self.runtime.settings)
         except (OSError, RuntimeError) as err:
             QMessageBox.critical(self, "Deploy", str(err))
             return
@@ -873,7 +983,7 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard():
             return
         try:
-            config = device.read_device_config()
+            config = device.read_device_config(uid=self.keypad_uid)
         except (OSError, RuntimeError, ValueError) as err:
             QMessageBox.critical(self, "Load from keypad", str(err))
             return
@@ -886,6 +996,17 @@ class MainWindow(QMainWindow):
     def calibrate_leds(self):
         from .calibration import CalibrationDialog
 
+        if self.keypad_uid and self.hub.store is not None:
+            # Calibration belongs to the physical keypad, not the (shareable) layout.
+            def save(gamma, balance):
+                self.hub.store.update(self.keypad_uid, led_gamma=gamma, led_balance=balance)
+
+            if CalibrationDialog(self.config, self.runtime, self, keypad=self.runtime.settings,
+                                 on_save=save).exec():
+                self.statusBar().showMessage(
+                    "Colour balance saved for %s. Deploy (Ctrl+D) to keep it after the keypad "
+                    "restarts." % self.runtime.name, 8000)
+            return
         before = (self.config["device"].get("led_gamma"), self.config["device"].get("led_balance"))
         if CalibrationDialog(self.config, self.runtime, self).exec():
             after = (self.config["device"].get("led_gamma"), self.config["device"].get("led_balance"))
@@ -897,7 +1018,7 @@ class MainWindow(QMainWindow):
 
     def install_firmware(self):
         try:
-            drive = device.pick_drive()
+            drive = device.pick_drive(uid=self.keypad_uid)
         except (OSError, RuntimeError) as err:
             QMessageBox.critical(self, "Install firmware", str(err))
             return
@@ -918,7 +1039,7 @@ class MainWindow(QMainWindow):
             return
         try:
             device.install_firmware(drive, profile=profile)
-            device.deploy_config(self.config, drive)
+            device.deploy_config(self.config, drive, keypad=self.runtime.settings)
             missing = device.missing_libraries(drive, profile)
         except OSError as err:
             QMessageBox.critical(self, "Install firmware", str(err))
@@ -933,7 +1054,7 @@ class MainWindow(QMainWindow):
 
     def open_drive(self):
         try:
-            drive = device.pick_drive()
+            drive = device.pick_drive(uid=self.keypad_uid)
         except (OSError, RuntimeError) as err:
             QMessageBox.critical(self, "Open drive", str(err))
             return
@@ -944,6 +1065,6 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard():
             event.ignore()
             return
-        self.overlay.close()
+        self.overlays.close()
         event.accept()
 

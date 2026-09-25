@@ -132,11 +132,30 @@ cuekeys overlay layout.json     # overlay + bridge only
 cuekeys bridge layout.json -v   # headless bridge (OSC / grandMA / Companion)
 cuekeys init --example demo.json
 cuekeys validate layout.json
-cuekeys deploy layout.json [--drive /Volumes/CIRCUITPY]
-cuekeys install-firmware [layout.json] [--drive …] [--no-boot]
-cuekeys devices                 # detected CIRCUITPY drives (+ matching profile) and serial port
+cuekeys deploy layout.json [--drive /Volumes/CIRCUITPY] [--keypad FOH]
+cuekeys install-firmware [layout.json] [--drive …] [--keypad …] [--no-boot]
+cuekeys devices                 # CIRCUITPY drives (+ matching profile) and serial ports, with keypad ids
+cuekeys keypads                 # connected and remembered keypads
+cuekeys keypads rename e35b8c2b FOH
+cuekeys keypads assign FOH show.json   # layout this keypad uses (omit the file to clear)
 cuekeys profiles                # supported keypad models, and your plugin folder
 ```
+
+## Several keypads
+
+Plug in as many keypads as you like; CueKeys finds each one by its hardware id (the RP2040's unique
+id, which is also its USB serial number).
+
+- **Editor:** pick the keypad in the toolbar. Each keypad has its own layout, so opening or saving a
+  file assigns it to the selected keypad; keypads can share one file. *Deploy*, *Install firmware*
+  and *LED colour balance* act on the selected keypad.
+- **Overlay:** one per keypad, stacked in the corner and labelled with the keypad's name.
+- **Companion:** every Companion layer of every keypad is its own surface, `ck-<keypad>-<layer>`
+  (for example `ck-e35b8c2b-example`), so the same layout on two keypads can show different pages.
+- **Per keypad, not per layout:** its name, its layout file, and its LED calibration, stored in
+  `keypads.json` in the CueKeys config folder. Rename a keypad under **Keypad → Rename keypad…**.
+
+`--port` on `gui`, `overlay` and `bridge` limits CueKeys to the keypad on that port.
 
 ## Keypad ↔ host protocol
 

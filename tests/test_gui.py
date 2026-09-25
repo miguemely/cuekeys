@@ -26,7 +26,7 @@ def window(qtbot, monkeypatch, tmp_path):
     monkeypatch.setattr(win, "_confirm_discard", lambda: True)  # no modal on close
     qtbot.addWidget(win)
     yield win
-    win.overlay.close()
+    win.overlays.close()
     runtime.stop()
 
 
@@ -47,7 +47,8 @@ def test_layer_management(window):
     assert len(window.config["layers"]) == count + 1
     window.layer_mode.setCurrentIndex(window.layer_mode.findData("companion"))
     assert window.config["layers"][-1]["mode"] == "companion"
-    assert window.config["layers"][-1]["companion_id"].startswith("ck-")
+    layer_id = window.config["layers"][-1]["companion_id"]      # short: the keypad id is added
+    assert len(layer_id) == 6 and window.runtime.device_id(count) == "ck-local-" + layer_id
     window.move_layer(-1)
     assert window.layer_index == count - 1
 

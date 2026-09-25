@@ -81,47 +81,68 @@ def board_info(drive):
         return ""
 
 
-def pick_drive(drive=None):
+def pick_drive(drive=None, uid=None):
+    """The CIRCUITPY drive to use: ``drive`` if given, else the one of keypad ``uid``,
+    else the only one connected."""
     if drive:
         path = Path(drive)
         if not path.is_dir():
             raise FileNotFoundError("drive not found: %s" % drive)
         return path
     drives = find_drives()
+    if uid:
+        for candidate in drives:
+            if (board_uid(candidate) or "").upper() == uid.upper():
+                return candidate
+        raise FileNotFoundError("the CIRCUITPY drive of keypad %s isn't mounted" % uid)
     if not drives:
         raise FileNotFoundError("no CIRCUITPY drive found - is the keypad plugged in?")
     if len(drives) > 1:
-        raise RuntimeError("several CIRCUITPY drives found, pick one with --drive: %s"
-                           % ", ".join(str(d) for d in drives))
+        raise RuntimeError("several CIRCUITPY drives found, pick one with --keypad or --drive: %s"
+                           % ", ".join("%s (%s)" % (d, board_uid(d)) for d in drives))
     return drives[0]
 
 
 # ------------------------------------------------------------------ serial
-def find_data_port():
-    """Return the device name of the keypad's usb_cdc *data* port, or None."""
-    try:
-        from serial.tools import list_ports
-    except ImportError:
-        return None
-    ports = list(list_ports.comports())
+def list_keypads(ports=None):
+    """Connected CircuitPython keypads: ``[{"uid", "data_port", "console_port"}]``.
 
-    # Linux/macOS expose interface names ("CircuitPython CDC2 data").
-    for port in ports:
-        if port.interface and "data" in port.interface.lower():
-            return port.device
-
-    # Windows: group CircuitPython ports by serial number; with console+data
-    # enabled the data port is the second interface.
+    CircuitPython uses the chip's unique id as the USB serial number, and with
+    ``usb_cdc`` console+data enabled each keypad shows two serial ports that
+    share it. Linux/macOS name the interfaces ("CircuitPython CDC2 data");
+    Windows doesn't, so there the data port is the second one.
+    """
+    if ports is None:
+        try:
+            from serial.tools import list_ports
+        except ImportError:
+            return []
+        ports = list(list_ports.comports())
     groups = {}
     for port in ports:
-        text = " ".join(str(x) for x in (port.manufacturer, port.product, port.description))
+        text = " ".join(str(x) for x in (port.manufacturer, port.product, port.description, port.interface))
         if "circuitpython" in text.lower() or port.vid in (0x239A, 0x16D0, 0x2E8A):
-            groups.setdefault(port.serial_number or port.hwid, []).append(port)
-    for group in groups.values():
-        if len(group) >= 2:
-            group.sort(key=lambda p: (p.location or "", p.device))
-            return group[-1].device
-    return None
+            uid = (port.serial_number or port.hwid or port.device).upper()
+            groups.setdefault(uid, []).append(port)
+    keypads = []
+    for uid, group in sorted(groups.items()):
+        group.sort(key=lambda p: (p.location or "", p.device))
+        data = [p for p in group if p.interface and "data" in p.interface.lower()]
+        if data:
+            data_port = data[0].device
+        elif len(group) >= 2:
+            data_port = group[-1].device
+        else:
+            continue  # console only: boot.py hasn't enabled the data port yet (needs a replug)
+        console = [p.device for p in group if p.device != data_port]
+        keypads.append({"uid": uid, "data_port": data_port, "console_port": console[0] if console else None})
+    return keypads
+
+
+def find_data_port():
+    """The data port of the first connected keypad, or None."""
+    keypads = list_keypads()
+    return keypads[0]["data_port"] if keypads else None
 
 
 # ------------------------------------------------------------------ files
@@ -141,20 +162,21 @@ def _write(path, data):
         os.fsync(f.fileno())
 
 
-def deploy_config(config, drive=None):
-    """Write the firmware part of ``config`` to the keypad. Returns the path.
+def deploy_config(config, drive=None, uid=None, keypad=None):
+    """Write the firmware part of ``config`` to a keypad. Returns the path.
 
+    ``uid`` picks that keypad's drive; ``keypad`` is its settings (LED calibration).
     CircuitPython auto-reloads when the file changes.
     """
-    target = pick_drive(drive) / CONFIG_NAME
-    _write(target, cfg.dumps(cfg.firmware_view(cfg.prune(config))).encode("utf-8"))
+    target = pick_drive(drive, uid) / CONFIG_NAME
+    _write(target, cfg.dumps(cfg.firmware_view(cfg.prune(config), keypad)).encode("utf-8"))
     return target
 
 
-def read_device_config(drive=None):
+def read_device_config(drive=None, uid=None):
     import json
 
-    with open(pick_drive(drive) / CONFIG_NAME, encoding="utf-8") as f:
+    with open(pick_drive(drive, uid) / CONFIG_NAME, encoding="utf-8") as f:
         return cfg.merge_defaults(json.load(f))
 
 
@@ -171,14 +193,14 @@ def _sync_package(src_dir, dst_dir, prune=True):
     return copied
 
 
-def install_firmware(drive=None, include_boot=True, profile=None):
+def install_firmware(drive=None, include_boot=True, profile=None, uid=None):
     """Copy code.py, boot.py, lib/cuekeys_engine and lib/cuekeys_drivers to the drive.
 
     A plugin profile's own ``driver.py`` is installed as
     ``lib/cuekeys_drivers/<driver>.py``. Returns the copied paths.
     """
     src = firmware_source()
-    dst = pick_drive(drive)
+    dst = pick_drive(drive, uid)
     copied = []
     names = ["code.py"] + (["boot.py"] if include_boot else [])
     for name in names:
@@ -207,9 +229,9 @@ def required_libraries(profile):
     return ["adafruit_hid"] + [lib for lib in profile.libraries if lib != "adafruit_hid"]
 
 
-def missing_libraries(drive=None, profile=None):
+def missing_libraries(drive=None, profile=None, uid=None):
     profile = profile or devices.get_profile(devices.DEFAULT_PROFILE)
-    lib = pick_drive(drive) / "lib"
+    lib = pick_drive(drive, uid) / "lib"
     missing = []
     for name in required_libraries(profile):
         if not any((lib / n).exists() for n in (name, name + ".py", name + ".mpy")):
@@ -217,13 +239,23 @@ def missing_libraries(drive=None, profile=None):
     return missing
 
 
-def board_id(drive):
-    """CircuitPython board id from boot_out.txt (e.g. "pimoroni_keybow2040")."""
+def _boot_out_field(drive, field):
     try:
         text = (Path(drive) / "boot_out.txt").read_text(errors="replace")
     except OSError:
         return None
     for line in text.splitlines():
-        if line.startswith("Board ID:"):
+        if line.startswith(field + ":"):
             return line.split(":", 1)[1].strip()
     return None
+
+
+def board_uid(drive):
+    """The keypad's unique id from boot_out.txt (matches its USB serial number)."""
+    uid = _boot_out_field(drive, "UID")
+    return uid.upper() if uid else None
+
+
+def board_id(drive):
+    """CircuitPython board id from boot_out.txt (e.g. "pimoroni_keybow2040")."""
+    return _boot_out_field(drive, "Board ID")

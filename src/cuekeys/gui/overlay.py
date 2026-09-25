@@ -1,8 +1,9 @@
 """Floating, semi-transparent, always-on-top reference of the current layer.
 
-``Overlay`` manages one ``OverlayWindow`` per chosen display (main display,
-all displays, selected displays, or whichever display the mouse is on) and
-keeps their opacity and visibility in sync.
+``Overlay`` is one keypad's overlay: one ``OverlayWindow`` per chosen display
+(main display, all displays, selected displays, or whichever display the mouse
+is on), with opacity and visibility kept in sync. ``OverlayGroup`` keeps one
+``Overlay`` per connected keypad, stacked in the corner.
 """
 
 import sys
@@ -63,6 +64,8 @@ class Overlay(QObject):
         self.runtime = runtime
         self.signals = signals
         self.windows = {}          # QScreen -> OverlayWindow
+        self.label = ""            # keypad name in the header (several keypads)
+        self.stack_offset = 0      # px away from the corner (several keypads)
         self._visible = False
         self._opacity = float(self.settings.get("opacity", 0.8))
         signals.event.connect(self._on_event)
@@ -101,7 +104,7 @@ class Overlay(QObject):
                 self.windows.pop(screen).close()
         for screen in targets:
             if screen not in self.windows:
-                self.windows[screen] = OverlayWindow(self.runtime, self.signals, screen)
+                self.windows[screen] = OverlayWindow(self.runtime, self.signals, screen, self)
         for window in self.windows.values():
             window.apply_settings(self._opacity)
             window.setVisible(self._visible)
@@ -144,6 +147,17 @@ class Overlay(QObject):
         for window in self.windows.values():
             window.update()
 
+    def height(self):
+        if not self.windows:
+            self._rebuild()
+        return max((w.height() for w in self.windows.values()), default=0)
+
+    def set_stacking(self, label, offset):
+        self.label, self.stack_offset = label, int(offset)
+        for window in self.windows.values():
+            window.reposition()
+            window.update()
+
     def close(self):
         self._mouse_timer.stop()
         for window in self.windows.values():
@@ -178,16 +192,107 @@ class Overlay(QObject):
             self.visibility_changed.emit(visible)
 
     def _on_event(self, name, data):
-        if name == "overlay":
+        if name == "overlay" and data.get("keypad", self.runtime.uid) == self.runtime.uid:
             self.run_command(data.get("op", "cycle"), data.get("levels"))
+
+
+class OverlayGroup(QObject):
+    """One overlay per keypad, stacked in the corner and named when there are several."""
+
+    GAP = 8
+    visibility_changed = Signal(bool)
+
+    def __init__(self, hub, signals):
+        super().__init__()
+        self.hub = hub
+        self.signals = signals
+        self.overlays = {}          # uid -> Overlay
+        self._visible = False
+        signals.event.connect(self._on_event)
+        self.sync()
+
+    def get(self, uid):
+        return self.overlays.get(uid)
+
+    def sync(self):
+        sessions = dict(self.hub.sessions)
+        for uid in list(self.overlays):
+            if uid not in sessions:
+                self.overlays.pop(uid).close()
+        for uid, session in sessions.items():
+            if uid not in self.overlays:
+                overlay = Overlay(session, self.signals)
+                overlay.visibility_changed.connect(self._child_visibility)
+                self.overlays[uid] = overlay
+                if self._visible:
+                    overlay.setVisible(self._enabled(session))
+            else:
+                self.overlays[uid].runtime = session
+        self.restack()
+
+    @staticmethod
+    def _enabled(session):
+        return bool(session.config.get("overlay", {}).get("enabled", True))
+
+    def restack(self):
+        several = len(self.overlays) > 1
+        offset = 0
+        for uid, overlay in self.overlays.items():
+            overlay.set_stacking(self.hub.sessions[uid].name if several else "", offset)
+            if overlay.isVisible():
+                offset += overlay.height() + self.GAP
+
+    def setVisible(self, visible):
+        self._visible = bool(visible)
+        for overlay in self.overlays.values():
+            overlay.setVisible(self._visible and self._enabled(overlay.runtime))
+        self.restack()
+
+    def show(self):
+        self.setVisible(True)
+
+    def hide(self):
+        self.setVisible(False)
+
+    def isVisible(self):
+        return self._visible
+
+    def apply_settings(self):
+        for overlay in self.overlays.values():
+            overlay.apply_settings()
+        self.setVisible(self._visible)
+
+    def update(self):
+        for overlay in self.overlays.values():
+            overlay.update()
+
+    def close(self):
+        for overlay in self.overlays.values():
+            overlay.close()
+        self.overlays.clear()
+
+    def _child_visibility(self, _visible):
+        self.restack()
+        self.visibility_changed.emit(any(o.isVisible() for o in self.overlays.values()))
+
+    def _on_event(self, name, data):
+        if name == "keypads":
+            self.sync()
+        elif name == "config":
+            overlay = self.overlays.get(data.get("keypad"))
+            if overlay is not None:
+                overlay.apply_settings()
+                overlay.setVisible(self._visible and self._enabled(overlay.runtime))
+                self.restack()
 
 
 class OverlayWindow(QWidget):
     """The overlay on one display."""
 
-    def __init__(self, runtime, signals, screen=None):
+    def __init__(self, runtime, signals, screen=None, owner=None):
         super().__init__(None)
         self.runtime = runtime
+        self.owner = owner
         self.target_screen = screen
         self.pressed = set()
         self._scroll_clock = QElapsedTimer()
@@ -253,12 +358,15 @@ class OverlayWindow(QWidget):
         geo = screen.availableGeometry()
         margin = int(self.settings.get("margin", 24))
         corner = self.settings.get("corner", "bottom-right")
+        stack = self.owner.stack_offset if self.owner is not None else 0
         x = geo.left() + margin if "left" in corner else geo.right() - self.width() - margin
-        y = geo.top() + margin if "top" in corner else geo.bottom() - self.height() - margin
+        y = geo.top() + margin + stack if "top" in corner else geo.bottom() - self.height() - margin - stack
         self.move(QPoint(x, y))
 
     # ----------------------------------------------------------- events
     def _on_event(self, name, data):
+        if data.get("keypad", self.runtime.uid) != self.runtime.uid:
+            return
         if name == "key":
             (self.pressed.add if data["pressed"] else self.pressed.discard)(data["key"])
         elif name == "status" and not data.get("connected"):
@@ -344,6 +452,9 @@ class OverlayWindow(QWidget):
         font.setPixelSize(13)
         p.setFont(font)
         title = layer.get("name", "") or "Layer %d" % (layer_index + 1)
+        label = self.owner.label if self.owner is not None else ""
+        if label:
+            title = "%s · %s" % (label, title)
         status = None
         if not runtime.connected:
             status = ("keypad offline", T["muted"])

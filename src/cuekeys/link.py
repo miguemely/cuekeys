@@ -45,6 +45,11 @@ class DeviceLink:
             self._thread = threading.Thread(target=self._run, name="cuekeys-link", daemon=True)
             self._thread.start()
 
+    def set_port(self, port):
+        """Follow the keypad to a new port name (re-plugged); reconnects on the next retry."""
+        self.fixed_port = port
+        self._close()
+
     def stop(self):
         self._stop.set()
         self._close()

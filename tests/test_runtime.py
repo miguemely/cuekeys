@@ -100,67 +100,61 @@ def test_select_layer_without_keypad_previews_locally():
     assert rt.layer == 1
 
 
-def test_companion_layer_forwards_unassigned_keys():
+ENDPOINT = ("127.0.0.1", 16622)
+DEV = "ck-local-pad1"      # companion_device_id("LOCAL", layer with companion_id "pad1")
+
+
+def make_companion(keys=None, **layer_extra):
+    """A session with a Companion layer (index 1) and its FakeSatellite."""
     config = default_config()
-    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1",
-                             "keys": {"0": {"press": [{"type": "layer", "op": "next"}]},
-                                      "1": {"press": []}}})  # empty = unassigned
-    rt, _ = make(config)
-    sat = FakeSatellite()
-    rt.satellites["default"] = sat
-    rt._device_layers = {"pad1": 1}
+    config["layers"].append(dict({"name": "C", "mode": "companion", "companion_id": "pad1",
+                                  "keys": keys or {}}, **layer_extra))
+    rt, events = make(config)
+    rt.set_config(config)
+    return rt, events, rt.hub.satellites[ENDPOINT]
+
+
+def test_companion_layer_forwards_unassigned_keys():
+    rt, _, sat = make_companion({"0": {"press": [{"type": "layer", "op": "next"}]},
+                                 "1": {"press": []}})     # empty = unassigned
     rt._on_message({"t": "key", "k": 3, "s": 1, "l": 1})
     rt._on_message({"t": "key", "k": 3, "s": 0, "l": 1})
     rt._on_message({"t": "key", "k": 1, "s": 1, "l": 1})
     rt._on_message({"t": "key", "k": 0, "s": 1, "l": 1})   # locally assigned
     rt._on_message({"t": "key", "k": 7, "s": 1, "l": 0})   # local layer
-    assert sat.presses == [("pad1", 0, True), ("pad1", 0, False), ("pad1", 8, True)]
+    assert sat.presses == [(DEV, 0, True), (DEV, 0, False), (DEV, 8, True)]
 
 
 def test_bottom_row_stays_local_on_4x3_surface():
-    config = default_config()
-    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
-    rt, _ = make(config)
-    sat = FakeSatellite()
-    rt.satellites["default"] = sat
+    rt, _, sat = make_companion()
     rt._on_message({"t": "key", "k": 4, "s": 1, "l": 1})   # bottom row -> local only
     assert sat.presses == []
-    config["layers"][1]["companion_rows"] = 4
+    rt.config["layers"][1]["companion_rows"] = 4
     rt._on_message({"t": "key", "k": 4, "s": 1, "l": 1})
-    assert sat.presses == [("pad1", 13, True)]
+    assert sat.presses == [(DEV, 13, True)]
 
 
 def test_companion_page_and_overlay_messages():
-    config = default_config()
-    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
-    rt, events = make(config)
-    sat = FakeSatellite()
-    rt.satellites["default"] = sat
+    rt, events, sat = make_companion()
     rt._on_message({"t": "companion_page", "l": 1, "dir": 0})
     rt._on_message({"t": "companion_page", "l": 1, "dir": 1})
-    assert sat.pages == [("pad1", False), ("pad1", True)]
+    assert sat.pages == [(DEV, False), (DEV, True)]
     rt._on_message({"t": "companion_page", "l": 0, "dir": 1})  # not a Companion layer
     assert events[-1][0] == "log"
     rt._on_message({"t": "overlay", "op": "cycle", "levels": [1, 0]})
-    assert events[-1] == ("overlay", {"op": "cycle", "levels": [1, 0]})
+    assert events[-1] == ("overlay", {"keypad": "LOCAL", "op": "cycle", "levels": [1, 0]})
 
 
 def test_companion_page_tracked_from_location():
-    config = default_config()
-    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
-    rt, _ = make(config)
-    rt._device_layers = {"pad1": 1}
-    rt._on_companion_state("pad1", 0, {"color": (1, 1, 1), "page": 7})
+    rt, _, _ = make_companion()
+    rt.hub._on_companion_state(DEV, 0, {"color": (1, 1, 1), "page": 7})
     assert rt.companion_pages == {1: 7}
 
 
 def test_companion_state_updates_leds():
-    config = default_config()
-    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
-    link = FakeLink()
-    rt, events = make(config, link)
-    rt._device_layers = {"pad1": 1}
-    rt._on_companion_state("pad1", 0, {"color": (1, 2, 3), "text": "Hi"})
+    rt, _, _ = make_companion()
+    link = rt.link
+    rt.hub._on_companion_state(DEV, 0, {"color": (1, 2, 3), "text": "Hi"})
     assert link.sent[-1] == {"t": "led", "l": 1, "k": 3, "rgb": [1, 2, 3]}
     assert rt.companion_states[(1, 3)]["text"] == "Hi"
     link.sent.clear()
@@ -172,26 +166,29 @@ def test_satellites_follow_companion_layers():
     config = default_config()
     rt, _ = make(config)
     rt.set_config(config)
-    assert rt.satellites == {}
+    assert rt.hub.satellites == {}
     config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("CueKeys C", 12, 4)}  # 4x3 by default
+    name = "CueKeys Keypad local · C"
+    assert rt.hub.satellites[ENDPOINT].devices == {DEV: (name, 12, 4)}   # 4x3 by default
     config["layers"][-1]["companion_rows"] = 4
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("CueKeys C", 16, 4)}
+    assert rt.hub.satellites[ENDPOINT].devices == {DEV: (name, 16, 4)}
     config["device"]["profile"] = "adafruit_macropad"   # 3 wide, 4 tall
     config["layers"][-1].pop("companion_rows")
     rt.set_config(config)
-    assert rt.satellites["default"].devices == {"pad1": ("CueKeys C", 9, 3)}
+    assert rt.hub.satellites[ENDPOINT].devices == {DEV: (name, 9, 3)}
     config["layers"][-1]["mode"] = "local"
     rt.set_config(config)
-    assert rt.satellites == {}
+    assert rt.hub.satellites == {}
 
 
-def test_companion_device_id_default_is_stable():
-    layer = {"name": "x"}
-    assert companion_device_id(layer, 2) == companion_device_id(layer, 2)
-    assert companion_device_id({"companion_id": "abc"}, 2) == "abc"
+def test_companion_device_ids_follow_the_keypad_not_the_layout():
+    layer = {"name": "x", "companion_id": "pad1"}
+    assert companion_device_id("E6617C93E35B8C2B", layer, 2) == "ck-e35b8c2b-pad1"
+    assert companion_device_id("0123456789ABCDEF", layer, 2) == "ck-89abcdef-pad1"   # same layout, other pad
+    assert companion_device_id("E6617C93E35B8C2B", {"companion_id": "cuekeys-example"}, 0) == "ck-e35b8c2b-example"
+    assert companion_device_id("E6617C93E35B8C2B", {}, 3) == "ck-e35b8c2b-l3"
 
 
 def test_macropad_companion_mapping():
@@ -199,36 +196,32 @@ def test_macropad_companion_mapping():
     config["device"]["profile"] = "adafruit_macropad"
     config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
     rt, _ = make(config)
-    sat = FakeSatellite()
-    rt.satellites["default"] = sat
-    rt._device_layers = {"pad1": 1}
+    rt.set_config(config)
+    sat = rt.hub.satellites[ENDPOINT]
     rt._on_message({"t": "key", "k": 5, "s": 1, "l": 1})    # row 1, col 2 -> index 5 in a 3-wide surface
     rt._on_message({"t": "key", "k": 10, "s": 1, "l": 1})   # bottom row stays local
-    assert sat.presses == [("pad1", 5, True)]
-    rt._on_companion_state("pad1", 8, {"color": (9, 9, 9)})
+    assert sat.presses == [(DEV, 5, True)]
+    rt.hub._on_companion_state(DEV, 8, {"color": (9, 9, 9)})
     assert (1, 8) in rt.companion_states
-    rt._on_companion_state("pad1", 40, {"color": (9, 9, 9)})  # outside the grid: ignored
+    rt.hub._on_companion_state(DEV, 40, {"color": (9, 9, 9)})  # outside the grid: ignored
     assert (1, 40) not in rt.companion_states
 
 
 def test_companion_page_name_is_fetched_and_applied(monkeypatch):
     from cuekeys import companion as comp
 
-    config = default_config()
-    config["layers"].append({"name": "C", "mode": "companion", "companion_id": "pad1", "keys": {}})
-    rt, events = make(config)
-    rt._device_layers = {"pad1": 1}
+    rt, events, _ = make_companion()
     calls = []
     monkeypatch.setattr(comp, "page_name", lambda host, port, page: calls.append((host, port, page)) or "CueKeys 1")
-    rt._on_companion_state("pad1", 1, {"type": "PAGENUM", "text": "", "page": 4})
+    rt.hub._on_companion_state(DEV, 1, {"type": "PAGENUM", "text": "", "page": 4})
     assert rt.companion_page_label(1) == "p.4"          # name not fetched yet
-    job = rt._jobs.get_nowait()
-    assert job == ("page_name", (1, "default", 4))
-    rt._fetch_page_name(*job[1])
+    kind, payload = rt.hub.jobs.get_nowait()
+    assert kind == "page_name" and payload[1:] == (1, 4)
+    rt.hub._fetch_page_name(*payload)
     assert calls == [("127.0.0.1", 8000, 4)]
     assert rt.companion_states[(1, 7)]["page_name"] == "CueKeys 1"
     assert rt.companion_page_label(1) == "CueKeys 1"
     assert events[-1][0] == "companion"
     # later updates for the same page keep the name without another fetch
-    rt._on_companion_state("pad1", 1, {"type": "PAGENUM", "text": "", "page": 4, "color": (1, 2, 3)})
-    assert rt.companion_states[(1, 7)]["page_name"] == "CueKeys 1" and rt._jobs.empty()
+    rt.hub._on_companion_state(DEV, 1, {"type": "PAGENUM", "text": "", "page": 4, "color": (1, 2, 3)})
+    assert rt.companion_states[(1, 7)]["page_name"] == "CueKeys 1" and rt.hub.jobs.empty()

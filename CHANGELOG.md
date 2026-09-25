@@ -6,6 +6,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Several keypads at once.** Keypads are identified by their hardware id (the RP2040 unique id,
+  also their USB serial number), found automatically, and followed when re-plugged.
+  - A keypad picker in the editor; each keypad has its own layout (keypads can share a file), and
+    deploy, firmware install and LED calibration act on the selected keypad.
+  - One overlay per keypad, stacked and labelled with the keypad's name.
+  - Per-keypad name, layout and LED calibration in `keypads.json`; `cuekeys keypads`
+    (list / rename / assign / forget) and `--keypad` for `deploy` and `install-firmware`.
+  - The firmware reports its id in `hello` (`uid`).
 - **Overlay on every macOS Space and over full-screen apps.** It's made a non-activating panel with
   all-Spaces collection behaviour. Setting: Overlay → "All desktops + full-screen apps".
 - **Overlay display choice:** main display, all displays, the display with the mouse pointer, or
@@ -26,6 +34,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - Each build is smoke-tested in CI before release.
 
 ### Changed
+- **Companion surface ids include the keypad:** `ck-<keypad>-<layer>` (e.g. `ck-e35b8c2b-example`),
+  named `CueKeys <keypad> · <layer>`. Existing surfaces show up under the new id once; set its
+  startup page and page permissions again in Companion and forget the old one.
 - **Smaller desktop apps:**
   - depend on `PySide6-Essentials` instead of the full `PySide6`;
   - the PyInstaller spec drops unused Qt modules (QtPdf, QtQuick/QtQml, QtNetwork, QtSvg, the

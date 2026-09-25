@@ -7,8 +7,8 @@ keeps their opacity and visibility in sync.
 
 import sys
 
-from PySide6.QtCore import QObject, QPoint, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtCore import QElapsedTimer, QObject, QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QImage, QLinearGradient, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ..config import DEFAULT_OVERLAY_LEVELS
@@ -17,6 +17,25 @@ from .common import cell_badge, cell_content, paint_key, to_qcolor
 from .theme import T
 
 SCREEN_MODES = ("primary", "all", "mouse")  # or a list of display names
+
+# Header ticker: text that doesn't fit shows its start, scrolls to its end, then
+# jumps back. Only runs while the text overflows.
+SCROLL_SPEED = 30        # px per second
+SCROLL_PAUSE_MS = 1500   # hold at the start and at the end
+SCROLL_TICK_MS = 33
+
+
+def marquee_offset(elapsed_ms, overflow, speed=SCROLL_SPEED, pause_ms=SCROLL_PAUSE_MS):
+    """Horizontal scroll offset (px) for text that is ``overflow`` px too wide."""
+    if overflow <= 0:
+        return 0.0
+    travel_ms = overflow / speed * 1000.0
+    t = elapsed_ms % (pause_ms + travel_ms + pause_ms)
+    if t < pause_ms:
+        return 0.0
+    if t < pause_ms + travel_ms:
+        return (t - pause_ms) * speed / 1000.0
+    return float(overflow)
 HEADER = 30
 MIN_WIDTH = 230  # room for the header on narrow pads
 PAD = 10
@@ -171,6 +190,11 @@ class OverlayWindow(QWidget):
         self.runtime = runtime
         self.target_screen = screen
         self.pressed = set()
+        self._scroll_clock = QElapsedTimer()
+        self._scroll_text = None
+        self._scroll_timer = QTimer(self)
+        self._scroll_timer.setInterval(SCROLL_TICK_MS)
+        self._scroll_timer.timeout.connect(lambda: self.update(QRect(0, 0, self.width(), PAD + HEADER)))
         self.setWindowTitle("CueKeys overlay")
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
@@ -213,6 +237,14 @@ class OverlayWindow(QWidget):
             from . import macos
 
             macos.show_on_all_spaces(self, bool(self.settings.get("all_spaces", True)))
+
+    def hideEvent(self, event):
+        self._scroll_timer.stop()
+        super().hideEvent(event)
+
+    @property
+    def scrolling(self):
+        return self._scroll_timer.isActive()
 
     def reposition(self):
         screen = self.target_screen or QGuiApplication.primaryScreen()
@@ -323,19 +355,7 @@ class OverlayWindow(QWidget):
             if state == "online" and page:
                 status = ("Companion · %s" % page, T["success"])
         header = QRectF(PAD + 12, PAD, x0 - PAD - 18, HEADER - 6)
-        p.setPen(QColor(T["text"]))
-        metrics = p.fontMetrics()
-        name_w = min(metrics.horizontalAdvance(title), header.width())
-        p.drawText(header, Qt.AlignVCenter | Qt.AlignLeft,
-                   metrics.elidedText(title, Qt.ElideRight, int(header.width())))
-        if status and name_w + 60 < header.width():
-            small = QFont(self.font())
-            small.setPixelSize(10)
-            p.setFont(small)
-            p.setPen(QColor(status[1]))
-            rest = header.adjusted(name_w + 8, 1, 0, 0)
-            p.drawText(rest, Qt.AlignVCenter | Qt.AlignLeft,
-                       p.fontMetrics().elidedText("● " + status[0], Qt.ElideRight, int(rest.width())))
+        self._paint_header_text(p, header, font, title, status)
 
         profile = self._profile()
         for key in profile.keys():
@@ -345,3 +365,83 @@ class OverlayWindow(QWidget):
                       radius=7, font_px=max(9, key_size // 6), empty=T["empty_key"],
                       badge=cell_badge(config, layer_index, key, runtime.companion_states))
         p.end()
+
+    def _paint_header_text(self, p, header, title_font, title, status):
+        """Layer name stays put; only the status scrolls (ticker) when it doesn't fit.
+
+        With no status the name itself scrolls; with a status, a very long name is
+        capped (elided) so the status always has room.
+        """
+        status_font = QFont(self.font())
+        status_font.setPixelSize(10)
+        p.setFont(title_font)
+        title_w = p.fontMetrics().horizontalAdvance(title)
+        status_text = ("● " + status[0]) if status else ""
+        overflow = 0
+
+        if not status_text:
+            overflow = self._draw_marquee(p, header, title, title_font, QColor(T["text"]), 0)
+        else:
+            p.setFont(status_font)
+            status_w = p.fontMetrics().horizontalAdvance(status_text)
+            fits = title_w + 8 + status_w <= header.width()
+            name_w = title_w if fits else min(title_w, header.width() * 0.55)
+            p.setFont(title_font)
+            p.setPen(QColor(T["text"]))
+            p.drawText(QRectF(header.left(), header.top(), name_w + 1, header.height()),
+                       Qt.AlignVCenter | Qt.AlignLeft,
+                       p.fontMetrics().elidedText(title, Qt.ElideRight, int(name_w + 1)))
+            # The coloured dot is a status light: it stays put, only the words scroll.
+            p.setFont(status_font)
+            p.setPen(QColor(status[1]))
+            dot_w = p.fontMetrics().horizontalAdvance("● ")
+            dot_x = header.left() + name_w + 8
+            p.drawText(QRectF(dot_x, header.top() + 1, dot_w + 1, header.height()),
+                       Qt.AlignVCenter | Qt.AlignLeft, "●")
+            rest = QRectF(dot_x + dot_w, header.top(), header.right() - dot_x - dot_w, header.height())
+            overflow = self._draw_marquee(p, rest, status[0], status_font, QColor(status[1]), 1)
+
+        if overflow > 0 and self.isVisible():
+            if not self._scroll_timer.isActive():
+                self._scroll_timer.start()
+        else:
+            self._scroll_timer.stop()
+
+    def _draw_marquee(self, p, rect, text, font, color, dy):
+        """Draw ``text`` in ``rect``; scroll it with faded edges if it's too wide. Returns overflow px."""
+        p.setFont(font)
+        text_w = p.fontMetrics().horizontalAdvance(text)
+        overflow = text_w - rect.width()
+        key = (text, int(rect.width()))
+        if key != self._scroll_text:          # new text: start again from the beginning
+            self._scroll_text = key
+            self._scroll_clock.restart()
+        offset = marquee_offset(self._scroll_clock.elapsed(), overflow)
+
+        # Draw into a transparent layer so the edges can fade the text itself
+        # (a painted gradient would show against the translucent panel).
+        dpr = self.devicePixelRatioF()
+        w, h = max(1, int(rect.width())), max(1, int(rect.height()))
+        layer = QImage(int(w * dpr), int(h * dpr), QImage.Format_ARGB32_Premultiplied)
+        layer.setDevicePixelRatio(dpr)
+        layer.fill(Qt.transparent)
+        lp = QPainter(layer)
+        lp.setRenderHint(QPainter.Antialiasing)
+        lp.setRenderHint(QPainter.TextAntialiasing)
+        lp.setFont(font)
+        lp.setPen(color)
+        lp.drawText(QRectF(-offset, dy, text_w + 2, h), Qt.AlignVCenter | Qt.AlignLeft, text)
+        if overflow > 0:
+            fade = 12.0
+            left = fade / w if offset > 0 else 0.0
+            right = fade / w if offset < overflow else 0.0
+            mask = QLinearGradient(0, 0, w, 0)
+            mask.setColorAt(0.0, QColor(0, 0, 0, 0 if left else 255))
+            mask.setColorAt(left, QColor(0, 0, 0, 255))
+            mask.setColorAt(1.0 - right, QColor(0, 0, 0, 255))
+            mask.setColorAt(1.0, QColor(0, 0, 0, 0 if right else 255))
+            lp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            lp.fillRect(QRectF(0, 0, w, h), mask)
+        lp.end()
+        p.drawImage(QPointF(rect.left(), rect.top()), layer)
+        return overflow

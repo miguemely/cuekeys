@@ -200,3 +200,54 @@ def test_screen_picker_round_trip():
     for i in range(picker.list.count()):
         picker.list.item(i).setCheckState(Qt.Unchecked)
     assert picker.value() == "primary"                      # nothing ticked -> main display
+
+
+def test_marquee_offset_timing():
+    from cuekeys.gui.overlay import marquee_offset
+
+    # 60 px too wide at 30 px/s: hold 1.5 s, scroll for 2 s, hold 1.5 s, repeat
+    assert marquee_offset(0, 60) == 0 and marquee_offset(1499, 60) == 0
+    assert marquee_offset(2500, 60) == 30.0
+    assert marquee_offset(3500, 60) == 60.0 and marquee_offset(4999, 60) == 60.0
+    assert marquee_offset(5000, 60) == 0          # next cycle
+    assert marquee_offset(9999, 0) == 0 and marquee_offset(9999, -5) == 0   # fits: never moves
+
+
+def test_overlay_header_scrolls_only_when_too_long(window):
+    overlay = window.overlay
+    overlay.apply_settings()
+    overlay.show()
+    win = next(iter(overlay.windows.values()))
+    runtime = window.runtime
+    layer = window.config["layers"][runtime.layer]
+
+    runtime.connected = True                      # no status text on a local layer
+    layer["name"] = "A very long layer name that cannot possibly fit in the overlay header"
+    win.grab()
+    assert win.scrolling                          # the name is the only text: it scrolls
+    layer["name"] = "Short"
+    win.grab()
+    assert not win.scrolling
+
+    runtime.connected = False                     # status "keypad offline" appears
+    win.grab()
+    assert not win.scrolling                      # short name + status fit
+    overlay.hide()
+    assert not win.scrolling
+
+
+def test_overlay_status_scrolls_but_layer_name_stays(window, monkeypatch):
+    from cuekeys.gui import overlay as ov
+
+    overlay = window.overlay
+    overlay.apply_settings()
+    overlay.show()
+    win = next(iter(overlay.windows.values()))
+    window.runtime.connected = False
+    window.config["layers"][window.runtime.layer]["name"] = "Editing"
+    drawn = []
+    real = ov.OverlayWindow._draw_marquee
+    monkeypatch.setattr(ov.OverlayWindow, "_draw_marquee",
+                        lambda self, p, rect, text, *a: drawn.append(text) or real(self, p, rect, text, *a))
+    win.grab()
+    assert drawn == ["keypad offline"]            # only the status words go through the ticker

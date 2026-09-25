@@ -216,6 +216,7 @@ def test_marquee_offset_timing():
 
 def test_overlay_header_scrolls_only_when_too_long(window):
     overlay = window.overlay
+    window.config["overlay"]["key_size"] = 100    # wide header: "Short" + status fit with any font
     overlay.apply_settings()
     overlay.show()
     win = next(iter(overlay.windows.values()))

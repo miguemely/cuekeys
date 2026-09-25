@@ -91,18 +91,8 @@
                 "L"
               ],
               "mode": "tap"
-            },
-            {
-              "type": "keys",
-              "keys": [
-                "PRIMARY",
-                "SHIFT",
-                "L"
-              ],
-              "mode": "tap"
             }
-          ],
-          "color": "#0040ff"
+          ]
         },
         "7": {
           "label": "Paste",

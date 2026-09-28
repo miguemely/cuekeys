@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Bitfocus Companion integration.
 
 Two ways to drive Companion:
@@ -22,6 +23,24 @@ import urllib.request
 log = logging.getLogger(__name__)
 
 HTTP_OPS = ("down", "up", "press")
+MAX_LINE_BYTES = 64 * 1024
+MAX_READ_BYTES = 4 * 1024
+_DEVICE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+
+
+def _safe_device_id(value):
+    value = str(value)
+    if not _DEVICE_ID.fullmatch(value):
+        raise ValueError("invalid Companion device id")
+    return value
+
+
+def _safe_surface_name(value):
+    """Keep protocol control characters out of a quoted Satellite field."""
+    text = str(value)
+    text = "".join(" " if ord(char) < 32 or ord(char) == 127 or char == "\\" else char
+                   for char in text)
+    return text.replace('"', "'")[:128]
 
 
 def http_button(host, port, page, row, column, op="press", timeout=2.0):
@@ -139,6 +158,7 @@ class SatelliteClient:
         return self.api_version >= CHANGE_PAGE_API
 
     def add_device(self, device_id, name, keys_total=16, keys_per_row=None):
+        device_id = _safe_device_id(device_id)
         known = device_id in self.devices
         self.devices[device_id] = (name, int(keys_total), int(keys_per_row or self.keys_per_row))
         if self.sock is not None and self._ready:
@@ -151,6 +171,7 @@ class SatelliteClient:
 
     def change_page(self, device_id, forward=True):
         """Next/previous Companion page on this surface. False if unsupported."""
+        device_id = _safe_device_id(device_id)
         if not self.can_change_page:
             log.warning("Companion page change needs Satellite API 1.10+ (Companion 4.3+); "
                         "server has %s", ".".join(map(str, self.api_version)))
@@ -158,12 +179,14 @@ class SatelliteClient:
         return self._send("CHANGE-PAGE DEVICEID=%s DIRECTION=%d" % (device_id, 1 if forward else 0))
 
     def remove_device(self, device_id):
+        device_id = _safe_device_id(device_id)
         if self.devices.pop(device_id, None) is not None:
             self.registered.pop(device_id, None)
             self._retry_at.pop(device_id, None)
             self._send("REMOVE-DEVICE DEVICEID=%s" % device_id)
 
     def key_press(self, device_id, index, pressed):
+        device_id = _safe_device_id(device_id)
         self._send("KEY-PRESS DEVICEID=%s KEY=%d PRESSED=%s"
                    % (device_id, index, "true" if pressed else "false"))
 
@@ -197,6 +220,7 @@ class SatelliteClient:
 
     def _register(self, device_id):
         name, keys_total, keys_per_row = self.devices[device_id]
+        name = _safe_surface_name(name)
         extra = " CAN_CHANGE_PAGE=true" if self.can_change_page else ""
         self._pending[device_id] = time.monotonic()
         self._send('ADD-DEVICE DEVICEID=%s PRODUCT_NAME="%s" KEYS_TOTAL=%d KEYS_PER_ROW=%d '
@@ -313,7 +337,7 @@ class SatelliteClient:
                                     "id? retrying", device_id)
                         self._register(device_id)
                 try:
-                    chunk = sock.recv(65536)
+                    chunk = sock.recv(MAX_READ_BYTES)
                 except socket.timeout:
                     continue
                 except OSError:
@@ -323,10 +347,16 @@ class SatelliteClient:
                 buffer += chunk
                 while b"\n" in buffer:
                     raw, buffer = buffer.split(b"\n", 1)
+                    if len(raw) > MAX_LINE_BYTES:
+                        log.warning("discarding oversized line from Companion")
+                        continue
                     try:
                         self.handle_line(raw.decode("utf-8", errors="replace"))
                     except Exception:  # noqa: BLE001
                         log.exception("bad satellite line: %r", raw)
+                if len(buffer) > MAX_LINE_BYTES:
+                    log.warning("discarding oversized unterminated line from Companion")
+                    buffer = b""
             self._close()
             if not self._stop.is_set():
                 self._stop.wait(self.retry)

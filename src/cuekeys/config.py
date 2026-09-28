@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Layout configuration: schema, defaults, validation, load/save.
 
 A config is plain JSON so the keypad can read it directly::
@@ -19,6 +20,7 @@ from it and ``validate()`` checks configs against it.
 import copy
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from . import devices
@@ -249,14 +251,19 @@ def default_config():
 
 def merge_defaults(config):
     """Fill in missing top-level sections/keys without touching existing ones."""
+    if not isinstance(config, dict):
+        raise ValueError("config must be a JSON object")
     base = default_config()
     out = copy.deepcopy(config)
-    legacy = (out.get("device") or {}).get("hardware")
     for section in ("device", "bridge", "overlay"):
+        value = out.get(section)
+        if value is not None and not isinstance(value, dict):
+            raise ValueError("%s must be an object" % section)
         merged = copy.deepcopy(base[section])
-        merged.update(out.get(section) or {})
+        merged.update(value or {})
         out[section] = merged
     # Layouts from before device profiles name the hardware instead.
+    legacy = out["device"].get("hardware")
     if legacy and "profile" not in (config.get("device") or {}):
         out["device"]["profile"] = devices.LEGACY_HARDWARE.get(legacy, legacy)
     out["device"].pop("hardware", None)
@@ -324,7 +331,7 @@ def validate_action(action, where, layer_count=1):
             errors.append("%s: MSC set needs control and value" % where)
         for name in ("cue", "cue_list", "cue_path"):
             text = action.get(name) or ""
-            if any(ord(c) > 127 for c in text):
+            if isinstance(text, str) and any(ord(c) > 127 for c in text):
                 errors.append("%s: MSC %s must be ASCII" % (where, name))
     return errors
 
@@ -335,12 +342,28 @@ def validate(config):
     if not isinstance(config, dict):
         return ["config must be a JSON object"]
     device = config.get("device", {})
+    if not isinstance(device, dict):
+        errors.append("device must be an object")
+        device = {}
+    overlay = config.get("overlay", {})
+    if not isinstance(overlay, dict):
+        errors.append("overlay must be an object")
+        overlay = {}
     try:
-        profile = devices.get_profile(devices.profile_id(config))
+        profile = devices.get_profile(devices.profile_id({"device": device}))
     except KeyError as err:
         errors.append(str(err).strip("'\""))
         profile = devices.profile_for(config)
-    rotation = int(config.get("overlay", {}).get("rotation", 0))
+    except (AttributeError, TypeError):
+        errors.append("device.profile must be a string")
+        profile = devices.get_profile(devices.DEFAULT_PROFILE)
+    rotation_value = overlay.get("rotation", 0)
+    if isinstance(rotation_value, bool) or not isinstance(rotation_value, int) \
+            or rotation_value not in (0, 90, 180, 270):
+        errors.append("overlay.rotation must be 0, 90, 180 or 270")
+        rotation = 0
+    else:
+        rotation = rotation_value
     display_rows = profile.display_size(rotation)[0]
     brightness = device.get("brightness", 0.5)
     if not isinstance(brightness, (int, float)) or not 0 <= brightness <= 1:
@@ -356,6 +379,9 @@ def validate(config):
     if not isinstance(layers, list) or not layers:
         return errors + ["config needs at least one layer"]
     for li, layer in enumerate(layers):
+        if not isinstance(layer, dict):
+            errors.append("layer %d: must be an object" % li)
+            continue
         lw = "layer %d (%s)" % (li, layer.get("name", ""))
         if layer.get("mode", "local") not in LAYER_MODES:
             errors.append("%s: mode must be one of %s" % (lw, ", ".join(LAYER_MODES)))
@@ -371,6 +397,9 @@ def validate(config):
             if not str(key_id).isdigit() or not 0 <= int(key_id) < profile.num_keys:
                 errors.append("%s: invalid key number %r (%s has keys 0-%d)"
                               % (lw, key_id, profile.name, profile.num_keys - 1))
+                continue
+            if not isinstance(key, dict):
+                errors.append("%s key %s: must be an object" % (lw, key_id))
                 continue
             for slot in KEY_SLOTS:
                 actions = key.get(slot) or []
@@ -404,24 +433,42 @@ def in_companion_region(layer, key, profile, rotation=0):
 
 
 def key_is_assigned(key):
-    return bool(key) and (any(key.get(slot) for slot in KEY_SLOTS)
+    return isinstance(key, dict) and bool(key) and (any(key.get(slot) for slot in KEY_SLOTS)
                           or bool(key.get("label")) or bool(key.get("color")))
 
 
 def prune(config):
     """Copy of ``config`` without empty action lists / keys left by the editor."""
     out = copy.deepcopy(config)
-    for layer in out.get("layers", []):
+    if not isinstance(out, dict):
+        return out
+    layers = out.get("layers", [])
+    if not isinstance(layers, list):
+        return out
+    for layer in layers:
+        if not isinstance(layer, dict):
+            continue
         keys = layer.get("keys") or {}
+        if not isinstance(keys, dict):
+            continue
         for key_id in list(keys):
             key = keys[key_id]
+            if not isinstance(key, dict):
+                continue
             for slot in KEY_SLOTS:
                 if slot in key and not key[slot]:
                     del key[slot]
             if not key_is_assigned(key):
                 del keys[key_id]
-        layer["keys"] = dict(sorted(keys.items(), key=lambda kv: int(kv[0])))
+        layer["keys"] = dict(sorted(keys.items(), key=lambda kv: _key_sort(kv[0])))
     return out
+
+
+def _key_sort(value):
+    try:
+        return 0, int(value)
+    except (TypeError, ValueError):
+        return 1, str(value)
 
 
 # --------------------------------------------------------------------- file I/O
@@ -437,12 +484,35 @@ def dumps(config):
 def save(config, path):
     """Write atomically where the filesystem allows it."""
     path = Path(path)
-    tmp = path.with_name(path.name + ".tmp")
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(dumps(prune(config)))
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(dumps(prune(config)))
+            f.flush()
+            os.fsync(f.fileno())
+        _keep_mode(tmp, path)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _keep_mode(tmp, path):
+    """mkstemp files are owner-only; give the saved layout the permissions a normal save would."""
+    try:
+        if path.exists():
+            mode = path.stat().st_mode & 0o777
+        else:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        os.chmod(tmp, mode)
+    except OSError:
+        pass            # e.g. FAT drives (CIRCUITPY) have no permissions to set
 
 
 def firmware_view(config, keypad=None):

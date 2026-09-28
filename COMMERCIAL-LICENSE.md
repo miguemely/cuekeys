@@ -1,43 +1,28 @@
 # Licensing
 
-CueKeys is **source-available**. The source is public and free for non-commercial use under
-the [PolyForm Noncommercial License 1.0.0](LICENSE). **Any commercial use needs a separate commercial
-license** from the copyright holder.
+CueKeys is source-available under the [CueKeys Source-Available Reciprocal License 1.0](LICENSE).
+Commercial, nonprofit, and personal use are allowed without a separate commercial license.
 
 > This page summarises the license in plain language. The [LICENSE](LICENSE) text is what actually
 > applies. It is not legal advice.
 
-## Free: non-commercial use
+## Allowed use
 
 The license allows, for example:
 
-- personal projects, hobby use, learning and experimenting, including modifying the code and sharing
-  your changes under the same terms;
-- use by charities, schools and universities, public research institutions, public safety or health
-  organisations, and government bodies;
-- writing and sharing device profiles, drivers and layouts for your own non-commercial use.
+- use and modification by individuals, nonprofits, and businesses;
+- internal business use and use in paid services or operations;
+- distribution of the source and modified source when the complete source, notices, and license are
+  provided.
 
-## Needs a commercial license
+## Not allowed
 
-- Using it in paid work: shows, events, broadcasts, streams or installations you're paid for, or
-  that support a business.
-- Using it inside a company, including internal tooling.
-- Selling or bundling it, or products or services built on it, including pre-configured keypads.
-- Offering it as part of a paid service.
+- Selling CueKeys itself, a renamed copy, or a modified version as a software product.
+- Licensing or sublicensing CueKeys as a standalone product.
+- Distributing a binary without the complete corresponding source and modifications.
 
-If you're unsure whether your use counts as commercial, ask.
-
-## Getting a commercial license
-
-Contact **Miguel Rodriguez**:
-
-- open a [**Commercial licensing** issue](https://github.com/miguemely/cuekeys/issues/new?template=commercial_license.yml) in this
-  repository (it only needs your contact details and a short description of your use; keep anything
-  confidential out of it and we'll continue privately), or
-- reach out through GitHub: https://github.com/miguemely
-
-Commercial licenses are granted case by case, and can cover a single user, a company or
-redistribution.
+Optional written permissions or exceptions may be requested from **Miguel Rodriguez** through the
+[licensing issue form](https://github.com/miguemely/cuekeys/issues/new?template=licensing.yml).
 
 ## Third-party components
 
@@ -48,5 +33,5 @@ in the firmware bundle (MIT). Some of them allow commercial use on their own ter
 
 ## Contributions
 
-To keep dual licensing possible, contributions are accepted only under the project's Contributor
-License Agreement. See [CONTRIBUTING.md](CONTRIBUTING.md#licensing-of-contributions).
+Contributions are accepted under the project's reciprocal license. See
+[CONTRIBUTING.md](CONTRIBUTING.md#licensing-of-contributions).

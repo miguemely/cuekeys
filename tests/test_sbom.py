@@ -1,9 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """SBOMs for the desktop apps (scripts/sbom.py) and the firmware bundle."""
 
 import importlib.util
+import io
 import json
 import sys
+import zipfile
 from pathlib import Path
+
+import pytest
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 
@@ -23,7 +28,8 @@ def test_python_sbom_lists_runtime_dependencies_only(tmp_path):
     sbom = load("sbom")
     root, components, deps = sbom.python_components()
     names = {sbom.normalize(c["name"]) for c in components}
-    assert root["name"] == "cuekeys" and root["licenses"] == [{"license": {"id": "PolyForm-Noncommercial-1.0.0"}}]
+    expected = "LicenseRef-CueKeys-Source-Available-Reciprocal-1.0"
+    assert root["name"] == "cuekeys" and root["licenses"] == [{"expression": expected}]
     assert "pyserial" in names
     assert not names & {"pytest", "ruff", "pyinstaller", "pytest-qt"}      # dev/build tools aren't shipped
     pyserial = next(c for c in components if sbom.normalize(c["name"]) == "pyserial")
@@ -41,6 +47,8 @@ def test_license_entries():
     assert sbom.license_entry("MIT") == {"license": {"id": "MIT"}}
     assert sbom.license_entry("LGPL-3.0-only OR GPL-3.0-only") == {"expression": "LGPL-3.0-only OR GPL-3.0-only"}
     assert sbom.license_entry("Some custom licence") == {"license": {"name": "Some custom licence"}}
+    custom = "LicenseRef-CueKeys-Source-Available-Reciprocal-1.0"          # not an SPDX list id
+    assert sbom.license_entry(custom) == {"expression": custom}
 
 
 def test_firmware_sbom_reads_library_versions(tmp_path):
@@ -57,3 +65,14 @@ def test_firmware_sbom_reads_library_versions(tmp_path):
     assert by_name["pmk"]["purl"] == "pkg:github/pimoroni/pmk-circuitpython@76b4ec6a"
     assert doc["metadata"]["component"]["type"] == "firmware"
     assert set(doc["dependencies"][0]["dependsOn"]) == {c["bom-ref"] for c in doc["components"]}
+
+
+def test_firmware_bundle_rejects_zip_traversal(tmp_path):
+    fw = load("build_firmware_bundle")
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("bundle/lib/foo/../../code.py", "malicious")
+    with pytest.raises(ValueError, match="unsafe archive path"):
+        fw.extract_libs(archive.getvalue(), ["foo"], lib, r"bundle/lib/")

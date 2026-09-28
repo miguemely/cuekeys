@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Key names understood by the firmware (adafruit_hid attribute names)."""
 
 LETTERS = [chr(c) for c in range(ord("A"), ord("Z") + 1)]

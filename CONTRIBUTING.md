@@ -49,7 +49,8 @@ editor, overlay and all tests run without one.
 
 Tests can't judge looks. The screenshots in `docs/images/` (README and docs) are rendered offscreen
 from the demo layout with fake keypads and Companion data. Regenerate them after UI changes and
-commit the PNGs; look at them before you do:
+commit the PNGs; look at them before you do. The step-by-step guides in `docs/guides/` use them too,
+so check that the steps and menu names there still match the UI:
 
 ```bash
 .venv/bin/python scripts/screenshots.py        # -> docs/images/*.png (2x, for high-DPI screens)
@@ -154,18 +155,14 @@ covered by CI, so do a release dry run for those.
 
 ## Licensing of contributions
 
-The project is dual-licensed: [PolyForm Noncommercial 1.0.0](LICENSE) for everyone, and separate
-commercial licenses sold by the copyright holder ([COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
-Contributed code can only be included in the commercial licenses if the contributor grants those
-rights. So:
+The project uses the [CueKeys Source-Available Reciprocal License 1.0](LICENSE). Contributions are
+distributed under the same license, so:
 
-- **Every contribution needs the project's Contributor License Agreement (CLA).** You keep your
-  copyright, and grant the maintainers the right to distribute your contribution under both the
-  non-commercial and commercial licenses.
-- The PR template has a checkbox for this, and a CLA bot may ask you to sign once.
-- New source files get the header `# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0`
+- You keep your copyright and grant the project permission to distribute your contribution under
+  this license.
+- New source files get the header `# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0`
   (firmware files already carry it).
 - Only add dependencies whose licenses allow this model: permissive (MIT, BSD, Apache-2.0, ISC,
   PSF) or LGPL used as a separately replaceable library. **Don't add GPL or AGPL dependencies**
-  without asking first, because they'd conflict with the non-commercial and commercial licensing.
-  Record every new distributed dependency in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+  without review, because their terms would apply to the whole distributed app. Record every new
+  distributed dependency in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

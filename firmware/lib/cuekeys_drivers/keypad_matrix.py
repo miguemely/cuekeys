@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Diode key matrix (CircuitPython ``keypad.KeyMatrix``), optional NeoPixels.
 
 driver_config::

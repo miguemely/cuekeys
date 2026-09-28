@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Shared Qt helpers."""
 
 from PySide6.QtCore import QObject, Signal

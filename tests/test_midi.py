@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 import pytest
 from cuekeys_engine import midi
 

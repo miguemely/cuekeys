@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """grandMA2 / grandMA3 command-line remotes.
 
 * grandMA3 accepts commands over OSC: ``/<prefix>/cmd "<command>"``. Enable

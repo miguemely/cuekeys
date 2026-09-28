@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Device profiles: which keypads CueKeys can drive.
 
 A profile is a folder with a ``device.json`` (and optionally a firmware

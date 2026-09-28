@@ -1,8 +1,11 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 import base64
 import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
+import pytest
 
 from cuekeys import companion as comp
 
@@ -46,6 +49,19 @@ def test_add_device_rejection_and_rename():
     assert sent[0] == "REMOVE-DEVICE DEVICEID=d"
     assert sent[1].startswith('ADD-DEVICE DEVICEID=d PRODUCT_NAME="Two"')
     client.sock = None
+
+
+def test_satellite_fields_cannot_inject_protocol_lines():
+    sent = []
+    client = comp.SatelliteClient("127.0.0.1")
+    client._send = lambda line: sent.append(line)
+    client.sock = object()
+    client._ready = True
+    client.add_device("safe", 'Pad\nINJECTED\\"')
+    assert "\n" not in sent[0]
+    assert "\\" not in sent[0]
+    with pytest.raises(ValueError):
+        client.add_device("bad\nDEVICEID=other", "Pad")
 
 
 def test_api_version_page_change_and_location():

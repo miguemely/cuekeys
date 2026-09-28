@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Render the screenshots used by README.md and docs/ (docs/images/*.png).
 
     python scripts/screenshots.py [--out docs/images] [--scale 2]
@@ -224,9 +224,9 @@ def main():
     for session in (foh, stage):
         session.config.setdefault("overlay", {})["opacity"] = 0.9
 
-    def overlay_image(session, layer):
+    def overlay_image(session, layer, overlays=None):
         session.layer = layer
-        overlay = group.get(session.uid)
+        overlay = (overlays or group).get(session.uid)
         overlay.apply_settings()
         overlay.show()
         app.processEvents()
@@ -246,7 +246,7 @@ def main():
     dialog = settings_module.SettingsDialog(config, window)
     dialog.resize(560, 520)
     tabs = dialog.findChild(settings_module.QTabWidget)
-    for prefix, name in (("Overlay", "overlay"), ("OSC", "companion")):
+    for prefix, name in (("Overlay", "overlay"), ("OSC", "companion"), ("grandMA", "grandma")):
         index = next(i for i in range(tabs.count()) if tabs.tabText(i).startswith(prefix))
         tabs.setCurrentIndex(index)
         dialog.show()
@@ -260,9 +260,138 @@ def main():
     save(calibration.grab(), "led-calibration.png")
     calibration.reject()
 
+    guide_shots(app, window, hub, signals, config, profile, save, compose, overlay_image,
+                OverlayGroup, settings_module, FOH)
+
+    window._confirm_discard = lambda: True            # the guide edits aren't saved anywhere
     window.overlays.close()
     window.close()
     hub.stop()
+
+
+# --------------------------------------------------------------------------- guides
+def paste(shot, popup_image, x, y, window):
+    """Draw a popup (menu, combo list) onto a window shot, kept inside the window."""
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QPainter
+
+    ratio = popup_image.devicePixelRatio()
+    w, h = popup_image.width() / ratio, popup_image.height() / ratio
+    x = max(8, min(x, window.width() - w - 8))
+    y = max(8, min(y, window.height() - h - 8))
+    p = QPainter(shot)
+    p.drawPixmap(QPointF(x, y), popup_image)
+    p.end()
+    return shot
+
+
+def guide_shots(app, window, hub, signals, config, profile, save, compose, overlay_image,
+                OverlayGroup, settings_module, uid):
+    """Screenshots for docs/guides/: each shows one step of a how-to."""
+    from PySide6.QtCore import QPoint
+    from PySide6.QtWidgets import QPushButton
+
+    from cuekeys.gui.actions import RecordDialog
+
+    session = hub.sessions[uid]
+
+    def select(layer, key, tab=0):
+        window.layer_list.setCurrentRow(layer)
+        window.grid.select(key)
+        window.slot_tabs.setCurrentIndex(tab)
+        app.processEvents()
+
+    # Getting started: the Keypad menu, and the device picker in Settings.
+    select(0, 10)
+    bar = window.menuBar()
+    action = next(a for a in bar.actions() if a.text().replace("&", "") == "Keypad")
+    menu = action.menu()
+    geo = bar.actionGeometry(action)
+    menu.popup(window.mapToGlobal(QPoint(geo.left(), geo.bottom())))
+    app.processEvents()
+    save(paste(window.grab(), menu.grab(), geo.left(), geo.bottom(), window), "guide-keypad-menu.png")
+    menu.close()
+
+    dialog = settings_module.SettingsDialog(config, window)
+    dialog.resize(560, 520)
+    tabs = dialog.findChild(settings_module.QTabWidget)
+    tabs.setCurrentIndex(0)
+    dialog.show()
+    app.processEvents()
+    save(dialog.grab(), "guide-settings-keypad.png")
+    dialog.close()
+
+    # Lock your computer: an empty key -> label + colour -> Add -> Key combo -> overlay.
+    lock_key = 12
+    layer_keys = config["layers"][0].setdefault("keys", {})
+    layer_keys.pop(str(lock_key), None)
+    select(0, lock_key)
+    window.key_label.setText("Lock")
+    window._key_edited()
+    window.key_color.choose("#ff0000")
+    app.processEvents()
+    save(window.grab(), "guide-lock-1-label.png")
+
+    press = window.slot_editors["press"]
+    add = next(b for b in press.findChildren(QPushButton) if "Add" in b.text())
+    add_menu = add.menu()
+    corner = add.mapTo(window, QPoint(0, 0))
+    add_menu.popup(window.mapToGlobal(corner))
+    app.processEvents()
+    menu_image = add_menu.grab()
+    menu_h = menu_image.height() / menu_image.devicePixelRatio()
+    save(paste(window.grab(), menu_image, corner.x(), corner.y() - menu_h, window), "guide-lock-2-add.png")
+    add_menu.close()
+
+    press.add({"type": "keys", "keys": ["CONTROL", "COMMAND", "Q"], "mode": "tap"})
+    app.processEvents()
+    save(window.grab(), "guide-lock-3-combo.png")
+
+
+    overlays = OverlayGroup(hub, signals)
+    overlays.get(uid).set_stacking("", 0)
+    save(compose([overlay_image(session, 0, overlays)]), "guide-lock-overlay.png")
+    overlays.close()
+
+    # Macros and layers: typed text, a hold action, a layer key.
+    def find_key(layer, kind):
+        keys = config["layers"][layer].get("keys") or {}
+        return next(int(k) for k, v in sorted(keys.items(), key=lambda kv: int(kv[0]))
+                    if any(a.get("type") == kind for a in v.get("press") or []))
+
+    record = RecordDialog(window)                     # as if Cmd+A, a pause, Cmd+C were typed
+    record._captured(["PRIMARY", "A"], 0)
+    record._captured(["PRIMARY", "C"], 240)
+    record.keep_delays.setChecked(True)
+    record.resize(420, 300)
+    record.show()
+    app.processEvents()
+    save(record.grab(), "guide-record.png")
+    record.reject()
+
+    select(0, find_key(0, "text"))
+    save(window.grab(), "guide-text.png")
+    select(0, 0, tab=2)
+    save(window.grab(), "guide-hold.png")
+    select(0, 0)
+    save(window.grab(), "guide-layer-key.png")
+
+    # Lighting consoles: grandMA3 over OSC, grandMA2 / anything over MIDI.
+    select(1, find_key(1, "ma"))
+    save(window.grab(), "guide-grandma3.png")
+    select(2, find_key(2, "midi_note"))
+    save(window.grab(), "guide-midi.png")
+
+    # Several keypads: the picker's list.
+    select(0, 10)
+    combo = window.keypad_combo
+    combo.showPopup()
+    app.processEvents()
+    popup = combo.view().window()
+    at = combo.mapTo(window, QPoint(0, combo.height()))
+    save(paste(window.grab(), popup.grab(), at.x(), at.y(), window), "guide-keypad-picker.png")
+    combo.hidePopup()
+    select(0, 10)
 
 
 if __name__ == "__main__":

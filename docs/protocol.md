@@ -3,15 +3,18 @@
 **Transport:** the keypad's second USB CDC serial port, `usb_cdc.data`. `firmware/boot.py` enables it,
 and it appears after a hard reset.
 
-**Framing:** one JSON object per line (`\n`), UTF-8. Every message has a `"t"` (type) field. Unknown
-types and unknown fields must be ignored, which keeps old and new firmware and hosts compatible.
+**Framing:** one JSON object per line (`\n`), UTF-8, with a maximum frame size of 64 KiB. Oversized
+or unterminated frames are discarded. Every message has a `"t"` (type) field. Unknown types and
+unknown fields must be ignored, which keeps old and new firmware and hosts compatible.
 
 **Finding the port:** the host picks the port whose USB interface name contains "data"
 (Linux/macOS). On Windows it takes the higher-numbered of the two ports that share one USB serial
 number (`device.find_data_port`). Override it with `--port`.
 
 **Connecting:** on connect, the host sends `os`, then `hello?`. The keypad also sends `hello` by itself
-whenever the port (re)connects.
+whenever the port (re)connects. For discovered physical keypads, the host accepts messages only after
+`hello.uid` matches the USB serial identity of the port; messages received before that handshake are
+ignored.
 
 ## Keypad → host
 

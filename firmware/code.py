@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """CueKeys firmware.
 
 Reads ``/config.json`` (written by the host app) and turns the keypad into a
@@ -26,6 +26,8 @@ from adafruit_hid.keycode import Keycode
 from cuekeys_engine.engine import VERSION, Engine
 
 CONFIG_PATH = "/config.json"
+MAX_LINE_BYTES = 64 * 1024
+MAX_READ_BYTES = 4 * 1024
 # Unique per chip; CircuitPython also uses it as the USB serial number, so the
 # host can match this keypad's serial ports and CIRCUITPY drive to it.
 KEYPAD_UID = "".join("%02X" % b for b in microcontroller.cpu.uid)
@@ -82,15 +84,21 @@ class HostLink:
     def poll(self):
         if self.port is None or not self.port.in_waiting:
             return []
-        self.buffer += self.port.read(self.port.in_waiting)
+        self.buffer += self.port.read(min(self.port.in_waiting, MAX_READ_BYTES))
         lines = self.buffer.split(b"\n")
         self.buffer = lines.pop()
         out = []
         for line in lines:
+            if len(line) > MAX_LINE_BYTES:
+                continue
             try:
-                out.append(json.loads(line))
+                message = json.loads(line)
+                if isinstance(message, dict):
+                    out.append(message)
             except ValueError:
                 pass
+        if len(self.buffer) > MAX_LINE_BYTES:
+            self.buffer = b""
         return out
 
 
@@ -176,29 +184,32 @@ def main():
         was_connected = connected
 
         for msg in link.poll():
-            kind = msg.get("t")
-            if kind == "hello?":
-                hello()
-            elif kind == "layer":
-                engine.set_layer(msg.get("i", 0))
-            elif kind == "os":
-                engine.host_os = msg.get("os")
-            elif kind == "led":
-                engine.set_remote_color(msg.get("l", engine.layer), msg.get("k", 0),
-                                        msg.get("rgb"))
-            elif kind == "press":
-                engine.press(int(msg.get("k", 0)))
-            elif kind == "release":
-                engine.release(int(msg.get("k", 0)))
-            elif kind == "led_cal":
-                engine.set_calibration(msg.get("gamma", engine.gamma),
-                                       msg.get("balance", engine.balance))
-            elif kind == "led_test":
-                engine.set_test_color(msg.get("rgb"))
-            elif kind == "colors":
-                engine.set_preview(msg.get("layers"))
-            elif kind == "reload":
-                supervisor.reload()
+            try:
+                kind = msg.get("t")
+                if kind == "hello?":
+                    hello()
+                elif kind == "layer":
+                    engine.set_layer(msg.get("i", 0))
+                elif kind == "os":
+                    engine.host_os = msg.get("os")
+                elif kind == "led":
+                    engine.set_remote_color(msg.get("l", engine.layer), msg.get("k", 0),
+                                            msg.get("rgb"))
+                elif kind == "press":
+                    engine.press(int(msg.get("k", 0)))
+                elif kind == "release":
+                    engine.release(int(msg.get("k", 0)))
+                elif kind == "led_cal":
+                    engine.set_calibration(msg.get("gamma", engine.gamma),
+                                           msg.get("balance", engine.balance))
+                elif kind == "led_test":
+                    engine.set_test_color(msg.get("rgb"))
+                elif kind == "colors":
+                    engine.set_preview(msg.get("layers"))
+                elif kind == "reload":
+                    supervisor.reload()
+            except (AttributeError, TypeError, ValueError) as err:
+                link.send({"t": "log", "level": "error", "msg": str(err)})
 
 
 main()

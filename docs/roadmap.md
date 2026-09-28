@@ -19,9 +19,9 @@ Code exists for these but hasn't been checked for real. Anyone with the setup ca
 
 ## Housekeeping
 
-- **Contributor License Agreement:** the dual-licensing model needs a CLA text and a way to collect
-  signatures (e.g. the CLA Assistant GitHub app). Have a lawyer review it, together with the
-  commercial license terms.
+- **License review:** the CueKeys Source-Available Reciprocal License is a custom license. Have a
+  lawyer review it, in particular whether to add an explicit patent grant (PolyForm and most open
+  licenses have one) and whether contributions need anything beyond section 4.
 - **`gui/editor.py` is large.** Split the key editor panel and layer panel into their own modules. (S)
 - **OSC / Companion targets are edited as raw JSON** in Settings. Replace that with proper forms. (S)
 

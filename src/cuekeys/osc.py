@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Minimal OSC 1.0 encoder + UDP sender (no dependencies)."""
 
 import socket

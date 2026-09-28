@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 from cuekeys_engine import midi
 from cuekeys_engine.engine import ACTION_TYPES, Engine
 

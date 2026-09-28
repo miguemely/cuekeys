@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Write a CycloneDX 1.5 SBOM (JSON) for what a CueKeys build ships.
 
     python scripts/sbom.py --out dist/cuekeys-0.1.0-linux-x86_64.cdx.json [--app]
@@ -26,7 +26,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECT = "cuekeys"
-PROJECT_LICENSE = "PolyForm-Noncommercial-1.0.0"
+PROJECT_LICENSE = "LicenseRef-CueKeys-Source-Available-Reciprocal-1.0"
 EXTRAS = ("gui",)
 
 # Trove classifier -> SPDX id, for packages without License-Expression metadata.
@@ -70,7 +70,8 @@ def component(name, version, licenses=(), purl=None, ctype="library", supplier=N
 
 def license_entry(text):
     text = text.strip()
-    if " WITH " in text or " OR " in text or " AND " in text:
+    # CycloneDX only allows SPDX list ids in "id"; custom LicenseRef-… ids go in an expression.
+    if " WITH " in text or " OR " in text or " AND " in text or text.startswith("LicenseRef-"):
         return {"expression": text}
     if re.fullmatch(r"[A-Za-z0-9.+-]+", text):
         return {"license": {"id": text}}
@@ -175,7 +176,7 @@ def python_components(project=PROJECT, extras=EXTRAS):
     root = component(root_dist.metadata["Name"], root_dist.version, [PROJECT_LICENSE], purl(root_dist),
                      ctype="application", supplier="Miguel Rodriguez",
                      description=root_dist.metadata.get("Summary"))
-    root["licenses"] = [{"license": {"id": PROJECT_LICENSE}}]      # not a PyPI classifier
+    root["licenses"] = [license_entry(PROJECT_LICENSE)]            # not a PyPI classifier
     components = [component(d.metadata["Name"], d.version, _dist_licenses(d), purl(d))
                   for d in order[1:]]
     dependencies = {purl(seen[k]): [purl(c) for c in children] for k, children in graph.items()}

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Host-side runtime: keypads + OSC / grandMA / Companion bridges.
 
 The keypads do HID and MIDI themselves. Everything that needs a network (OSC,
@@ -56,11 +56,14 @@ def host_slug():
 def layer_key(layer, index):
     """Stable per-layer part of a Companion surface id."""
     key = str(layer.get("companion_id") or "l%d" % index)
-    return re.sub(r"^(ck|cuekeys|pmk)-", "", key)   # ids from before keypad identity
+    key = re.sub(r"^(ck|cuekeys|pmk)-", "", key)   # ids from before keypad identity
+    key = re.sub(r"[^A-Za-z0-9_.-]+", "-", key).strip("-")
+    return key[:64] or "l%d" % index
 
 
 def companion_device_id(uid, layer, index):
-    keypad = host_slug() if uid == VIRTUAL_UID else short_id(uid)
+    keypad = host_slug() if uid == VIRTUAL_UID else re.sub(r"[^A-Za-z0-9_.-]+", "-", short_id(uid)).strip("-")
+    keypad = keypad[:32] or "keypad"
     return "ck-%s-%s" % (keypad, layer_key(layer, index))
 
 
@@ -95,6 +98,7 @@ class KeypadSession:
             self.link = _NoLink()
         else:
             self.link = DeviceLink(port, self._on_message, self._on_status)
+        self._handshake_ok = not isinstance(self.link, DeviceLink)
 
     # -- identity ------------------------------------------------------------
     @property
@@ -169,6 +173,8 @@ class KeypadSession:
     # -- keypad events -----------------------------------------------------------
     def _on_status(self, connected, port):
         self.connected, self.port = connected, port or self.port
+        if isinstance(self.link, DeviceLink):
+            self._handshake_ok = False
         if not connected:
             self.firmware = None
             self.pressed.clear()
@@ -177,17 +183,37 @@ class KeypadSession:
         self.emit("status", connected=connected, port=port, firmware=self.firmware)
 
     def _on_message(self, msg):
+        if not isinstance(msg, dict):
+            return
         kind = msg.get("t")
         if kind == "hello":
             self.firmware = msg.get("fw")
             self.reported_uid = msg.get("uid")
-            if self.reported_uid and self.uid != VIRTUAL_UID and self.reported_uid.upper() != self.uid:
-                log.warning("keypad on %s reports id %s, expected %s", self.port, self.reported_uid, self.uid)
+            if isinstance(self.link, DeviceLink):
+                expected = self.uid if self.uid not in ("LOCAL", VIRTUAL_UID) else None
+                reported = str(self.reported_uid or "").upper()
+                if not reported or (expected is not None and reported != expected):
+                    log.warning("rejecting keypad on %s: reports id %s, expected %s",
+                                self.port, self.reported_uid, expected or "a valid uid")
+                    self._handshake_ok = False
+                    # Say why the keypad "works" but its keys are ignored.
+                    if not reported:
+                        text = ("The keypad on %s runs older firmware without a keypad id. Update it: "
+                                "Keypad → Install / update firmware." % self.port)
+                    else:
+                        text = ("Ignoring the keypad on %s: it reports id %s, but its USB port belongs "
+                                "to %s." % (self.port, reported, expected))
+                    self.emit("log", level="error", message=text)
+                    return
+                self._handshake_ok = True
             if msg.get("config_error"):
                 self.emit("log", level="error", message="keypad config error: %s" % msg["config_error"])
             self.emit("status", connected=True, port=self.port, firmware=self.firmware)
             self._push_companion_leds()
             self.push_colors(force=True)             # the keypad just (re)started: no preview
+        elif isinstance(self.link, DeviceLink) and not self._handshake_ok:
+            log.debug("ignoring keypad message before identity handshake: %s", kind)
+            return
         elif kind == "layer":
             self._set_layer(int(msg.get("i", 0)))
         elif kind == "key":
@@ -691,4 +717,5 @@ def Runtime(config, port=None, link=None, satellite_factory=None, uid=None, stor
     session = hub.add_session(uid, config, link=link or _NoLink(), port=port)
     if link is None:
         session.link = DeviceLink(port, session._on_message, session._on_status)
+        session._handshake_ok = False
     return session

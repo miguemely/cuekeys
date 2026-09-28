@@ -212,7 +212,7 @@ jobs:
             on && /^\[[^]]+\]: http/ { next }
             on { print }' CHANGELOG.md > notes.md
           test -s notes.md || { echo "no CHANGELOG section for ${GITHUB_REF_NAME}"; exit 1; }
-          printf '\n---\n%s\n' "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive, each with a CycloneDX SBOM (.cdx.json). Free for non-commercial use (PolyForm Noncommercial 1.0.0); commercial use needs a license - see COMMERCIAL-LICENSE.md." >> notes.md
+          printf '\n---\n%s\n' "Desktop apps, Python wheel and the drag-and-drop firmware bundle for the CIRCUITPY drive, each with a CycloneDX SBOM (.cdx.json). Licensed under the CueKeys Source-Available Reciprocal License 1.0: personal, nonprofit and commercial use are allowed; selling CueKeys itself as a product is not - see LICENSE and COMMERCIAL-LICENSE.md." >> notes.md
           gh release create "${GITHUB_REF_NAME}" artifacts/* \
             --title "CueKeys ${GITHUB_REF_NAME}" \
             --notes-file notes.md

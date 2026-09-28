@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Find the keypad (CIRCUITPY drive + serial data port) and write files to it."""
 
 import os

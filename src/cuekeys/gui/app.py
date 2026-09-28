@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Qt application bootstrap for the editor and the stand-alone overlay."""
 
 import os

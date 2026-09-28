@@ -1,6 +1,6 @@
 # Third-party notices
 
-CueKeys's own code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+CueKeys's own code is licensed under the [CueKeys Source-Available Reciprocal License 1.0](LICENSE).
 The components below are **not** covered by that license. Each keeps its own license, and nothing in
 this project restricts your rights under those licenses.
 

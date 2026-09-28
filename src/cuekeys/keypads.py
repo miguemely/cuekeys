@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Per-keypad settings, keyed by the keypad's hardware id.
 
 Layouts are portable (share them, use one on several keypads); things that
@@ -20,6 +20,7 @@ Stored in ``<config dir>/cuekeys/keypads.json``.
 import copy
 import json
 import os
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -55,10 +56,19 @@ class KeypadStore:
 
     def _write(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, indent=2, sort_keys=True)
-        os.replace(tmp, self.path)
+        fd, tmp = tempfile.mkstemp(prefix=self.path.name + ".", dir=str(self.path.parent))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(self._data, f, indent=2, sort_keys=True)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, self.path)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
 
     def get(self, uid):
         with self._lock:

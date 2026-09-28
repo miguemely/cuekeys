@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """JSON-lines link to the keypad over its usb_cdc data port."""
 
 import json
@@ -8,6 +9,9 @@ import threading
 from . import device
 
 log = logging.getLogger(__name__)
+
+MAX_LINE_BYTES = 64 * 1024
+MAX_READ_BYTES = 4 * 1024
 
 
 def host_os():
@@ -106,7 +110,7 @@ class DeviceLink:
                 self._stop.wait(self.retry)
                 continue
             try:
-                chunk = self.serial.read(self.serial.in_waiting or 1)
+                chunk = self.serial.read(min(self.serial.in_waiting or 1, MAX_READ_BYTES))
             except Exception as err:  # noqa: BLE001
                 log.info("keypad disconnected: %s", err)
                 self._close()
@@ -117,6 +121,9 @@ class DeviceLink:
             buffer += chunk
             while b"\n" in buffer:
                 line, buffer = buffer.split(b"\n", 1)
+                if len(line) > MAX_LINE_BYTES:
+                    log.warning("discarding oversized line from keypad")
+                    continue
                 line = line.strip()
                 if not line:
                     continue
@@ -125,7 +132,13 @@ class DeviceLink:
                 except ValueError:
                     log.debug("bad line from keypad: %r", line)
                     continue
+                if not isinstance(msg, dict):
+                    log.debug("ignoring non-object message from keypad")
+                    continue
                 try:
                     self.on_message(msg)
                 except Exception:  # noqa: BLE001
                     log.exception("message handler failed")
+            if len(buffer) > MAX_LINE_BYTES:
+                log.warning("discarding oversized unterminated line from keypad")
+                buffer = b""

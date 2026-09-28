@@ -1,0 +1,32 @@
+name: Licensing question or permission
+description: Ask about the license, or request a written permission or exception
+title: "Licensing: <organisation or name>"
+labels: [licensing]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most uses, including commercial use and paid services, are already allowed by the
+        [license](../blob/main/LICENSE) without asking; see the plain-language summary in
+        [COMMERCIAL-LICENSE.md](../blob/main/COMMERCIAL-LICENSE.md). Use this form for anything it
+        doesn't allow, such as selling CueKeys as a product or distributing without source, or if
+        you're unsure. Share only what you're happy to have visible here; we'll continue privately.
+  - type: input
+    id: who
+    attributes:
+      label: Name / organisation
+    validations:
+      required: true
+  - type: input
+    id: contact
+    attributes:
+      label: How should we contact you?
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: What you'd like to do
+      description: e.g. bundle CueKeys with hardware you sell, distribute binaries without source, a question about the terms.
+    validations:
+      required: true

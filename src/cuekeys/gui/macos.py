@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """macOS-only window tweaks Qt doesn't expose, via the Objective-C runtime (ctypes).
 
 Used to keep the overlay on every Space (desktop) and above full-screen apps.

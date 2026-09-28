@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Build a drag-and-drop firmware zip for the CIRCUITPY drive.
 
 The zip contains code.py, boot.py, config.json, lib/cuekeys_engine, lib/cuekeys_drivers and
@@ -27,9 +28,10 @@ import re
 import shutil
 import sys
 import tempfile
+import urllib.parse
 import urllib.request
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -57,15 +59,30 @@ LIBRARY_LICENSES = {
         "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_BusDevice/main/LICENSE",
     "neopixel": "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_NeoPixel/main/LICENSE",
 }
+MAX_DOWNLOAD_BYTES = 128 * 1024 * 1024
+MAX_MEMBER_BYTES = 32 * 1024 * 1024
+MAX_EXTRACT_BYTES = 128 * 1024 * 1024
 
 
 def fetch(url):
     headers = {"User-Agent": "cuekeys-build"}
     token = os.environ.get("GITHUB_TOKEN")
-    if token and "api.github.com" in url:
+    if token and urllib.parse.urlsplit(url).hostname == "api.github.com":
         headers["Authorization"] = "Bearer " + token
     with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=120) as resp:
-        return resp.read()
+        length = resp.headers.get("Content-Length")
+        if length and int(length) > MAX_DOWNLOAD_BYTES:
+            raise ValueError("download is too large: %s" % url)
+        chunks, size = [], 0
+        while True:
+            chunk = resp.read(1024 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > MAX_DOWNLOAD_BYTES:
+                raise ValueError("download is too large: %s" % url)
+            chunks.append(chunk)
+        return b"".join(chunks)
 
 
 def version():
@@ -88,19 +105,30 @@ def adafruit_bundle(source):
 
 def extract_libs(zip_bytes, names, lib_dir, prefix_re):
     found = set()
+    extracted = 0
+    root = Path(lib_dir).resolve()
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         for info in zf.infolist():
             match = re.match(prefix_re, info.filename)
             if not match or info.is_dir():
                 continue
             rel = info.filename[match.end():]
-            top = rel.split("/")[0]
+            parts = PurePosixPath(rel).parts
+            if (not parts or PurePosixPath(rel).is_absolute() or PureWindowsPath(rel).drive
+                    or ".." in parts or "\\" in rel or "\x00" in rel):
+                raise ValueError("unsafe archive path: %s" % info.filename)
+            top = parts[0]
             name = top[:-3] if top.endswith(".py") else top
             if name not in names:
                 continue
-            target = lib_dir / rel
+            if info.file_size > MAX_MEMBER_BYTES or extracted + info.file_size > MAX_EXTRACT_BYTES:
+                raise ValueError("archive contents are too large")
+            target = (root / Path(*parts)).resolve()
+            if target != root and root not in target.parents:
+                raise ValueError("unsafe archive path: %s" % info.filename)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(zf.read(info))
+            extracted += info.file_size
             found.add(name)
     missing = set(names) - found
     if missing:

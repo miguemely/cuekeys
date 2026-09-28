@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 import socket
 
 from cuekeys import grandma
 from cuekeys.config import default_config
+from cuekeys.link import DeviceLink
 from cuekeys.osc import encode_message
 from cuekeys.runtime import Runtime, companion_device_id
 
@@ -90,6 +92,25 @@ def test_layer_and_key_events():
     rt._on_message({"t": "key", "k": 5, "s": 0, "l": 1})
     assert rt.pressed == {}
     assert [e[0] for e in events] == ["layer", "key", "key"]
+
+
+def test_real_serial_link_requires_matching_keypad_identity():
+    config = default_config()
+    config["layers"].append({"name": "Two", "keys": {}})
+    link = DeviceLink("/dev/fake")
+    rt = Runtime(config, link=link, satellite_factory=FakeSatellite, uid="ABC123")
+    rt._on_message({"t": "layer", "i": 1})
+    assert rt.layer == 0
+    events = []
+    rt.add_listener(lambda name, data: events.append((name, data)))
+    rt._on_message({"t": "hello", "uid": "WRONG", "fw": "0.1.0"})
+    assert not rt._handshake_ok
+    assert events[-1][0] == "log" and "WRONG" in events[-1][1]["message"]   # shown to the user
+    rt._on_message({"t": "hello", "fw": "0.0.9"})                           # firmware without an id
+    assert "Install / update firmware" in events[-1][1]["message"]
+    rt._on_message({"t": "hello", "uid": "ABC123", "fw": "0.1.0"})
+    rt._on_message({"t": "layer", "i": 1})
+    assert rt.layer == 1
 
 
 def test_select_layer_without_keypad_previews_locally():

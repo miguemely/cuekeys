@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Main window: layers, key grid, key/macro editor, device + overlay control."""
 
 import copy
@@ -573,8 +574,9 @@ class MainWindow(QMainWindow):
             self, "CueKeys",
             "<b>CueKeys %s</b><br>Macros, layers, MIDI/OSC, grandMA and Companion for "
             "CircuitPython macro keypads.<br><br>"
-            "Free for non-commercial use under the PolyForm Noncommercial License 1.0.0; commercial "
-            "use needs a commercial license (see COMMERCIAL-LICENSE.md).<br><br>"
+            "Use and modification are allowed for personal, nonprofit, and commercial purposes under "
+            "the CueKeys Source-Available Reciprocal License 1.0; resale of the software is not allowed "
+            "(see LICENSE).<br><br>"
             "Uses PySide6 %s and Qt %s under the LGPL-3.0 (source: code.qt.io), and pyserial "
             "(BSD-3-Clause). See THIRD_PARTY_NOTICES.md.<br>Not affiliated with Pimoroni, Adafruit "
             "or Bitfocus." % (__version__, PySide6.__version__, qVersion()))
@@ -1164,4 +1166,3 @@ class MainWindow(QMainWindow):
             return
         self.overlays.close()
         event.accept()
-

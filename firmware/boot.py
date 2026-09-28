@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 # Runs once at power-up, before USB is set up. Changes here need a hard reset
 # (unplug/replug) to take effect.
 import usb_cdc

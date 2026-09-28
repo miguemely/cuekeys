@@ -28,6 +28,9 @@ Create, edit and manage macros on CircuitPython macro keypads, on Windows, macOS
 
 The keypad works on its own for keyboard, media and MIDI actions. The host app is only needed for the editor, the overlay and the network actions (OSC, grandMA, Companion).
 
+New here? Follow [Getting started](docs/guides/getting-started.md), then try
+[making a key that locks your computer](docs/guides/lock-your-computer.md).
+
 ## Install
 
 **Desktop app**: download the zip for your computer from the project's **Releases** page (each zip has a CycloneDX SBOM next to it, `.cdx.json`):
@@ -44,8 +47,8 @@ The apps are built on the newest build images, so the Linux minimum moves up ove
 Linux (e.g. Raspberry Pi OS bookworm), install from Python instead: `pip install "cuekeys[gui]"`.
 
 The builds aren't code-signed yet. macOS: right-click the app and choose **Open** the first time.
-Windows: **More info → Run anyway**. The Raspberry Pi build uses Qt 6.8 LTS; 32-bit Raspberry Pi OS
-isn't supported, because Qt has no 32-bit ARM packages.
+Windows: **More info → Run anyway**. 32-bit Raspberry Pi OS isn't supported, because Qt has no 32-bit
+ARM packages.
 
 **From source** (Python 3.10+):
 
@@ -187,6 +190,14 @@ Newline-separated JSON over the CircuitPython `usb_cdc.data` port. The full mess
 
 ## Documentation
 
+**Step-by-step guides** with screenshots are in [docs/guides](docs/guides/README.md):
+[getting started](docs/guides/getting-started.md),
+[lock your computer with one key](docs/guides/lock-your-computer.md),
+[macros](docs/guides/macros.md), [layers](docs/guides/layers.md),
+[colours and LEDs](docs/guides/colours-and-leds.md), [the overlay](docs/guides/overlay.md),
+[lighting consoles](docs/guides/lighting-consoles.md), [Companion](docs/guides/companion.md),
+[several keypads](docs/guides/several-keypads.md) and [troubleshooting](docs/guides/troubleshooting.md).
+
 | For | Read |
 |---|---|
 | Adding a keypad (device profiles, firmware drivers) | [docs/devices.md](docs/devices.md) |
@@ -232,11 +243,12 @@ To release: bump `__version__` in `src/cuekeys/__init__.py`, update `CHANGELOG.m
 
 ## License
 
-CueKeys is **source-available**: free for **non-commercial** use under the
-[PolyForm Noncommercial License 1.0.0](LICENSE). **Commercial use** needs a separate commercial
-license; see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for what counts as commercial and how to
-get one. Third-party components keep their own licenses (PySide6/Qt under LGPL-3.0, pyserial under
-BSD, the CircuitPython libraries under MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+CueKeys is source-available under the [CueKeys Source-Available Reciprocal License 1.0](LICENSE).
+Personal, nonprofit, and commercial use and modification are allowed, including internal use and
+paid services, provided distributed copies include complete source code and modifications. You may
+not sell CueKeys or a renamed or modified version as a software product. See
+[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for the plain-language policy. Third-party components
+keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 This project isn't affiliated with or endorsed by Pimoroni, Adafruit, Bitfocus or MA Lighting.
 Product names are used only to describe compatibility.

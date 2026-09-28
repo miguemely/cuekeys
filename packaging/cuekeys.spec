@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 # PyInstaller spec for the CueKeys desktop app (all platforms).
 #
 # Driven by packaging/build_app.py. Environment:

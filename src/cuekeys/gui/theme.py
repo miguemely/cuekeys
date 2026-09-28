@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Application-wide dark theme (same look on Windows, macOS and Linux)."""
 
 from PySide6.QtGui import QColor, QPalette

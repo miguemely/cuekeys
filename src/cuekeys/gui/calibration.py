@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Live LED colour calibration (gamma + white balance) against the real keypad."""
 
 from PySide6.QtCore import Qt

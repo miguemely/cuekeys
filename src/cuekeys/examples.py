@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Demo layout showing every major feature.
 
 The demo is written for the 4x4 Pimoroni pads and remapped by position

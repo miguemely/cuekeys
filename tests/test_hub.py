@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Multi-keypad: identity, per-keypad settings, discovery and shared bridges."""
 
 from types import SimpleNamespace

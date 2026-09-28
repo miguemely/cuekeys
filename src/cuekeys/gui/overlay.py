@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Floating, semi-transparent, always-on-top reference of the current layer.
 
 ``Overlay`` is one keypad's overlay: one ``OverlayWindow`` per chosen display

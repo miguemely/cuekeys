@@ -5,7 +5,20 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **New license: CueKeys Source-Available Reciprocal License 1.0**, replacing PolyForm Noncommercial
+  1.0.0. Personal, nonprofit and commercial use (including internal business use and paid services)
+  are now allowed without a separate license. Distributing CueKeys or a modified version requires
+  the complete source, the license and notices; selling CueKeys itself, renamed or modified, as a
+  software product isn't allowed. Contributions are distributed under the same license (no CLA).
+  Releases up to and including 0.1.0 remain available under PolyForm Noncommercial 1.0.0.
+  - Every source file carries `SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0`;
+    package metadata, SBOMs, the About box, release notes and the issue/PR templates follow it.
+
 ### Added
+- **User guides** in `docs/guides/`, with screenshots for each step: getting started, locking your
+  computer with one key, macros, layers, colours and LEDs, the overlay, lighting consoles (grandMA,
+  MIDI, MSC), Companion, several keypads, and troubleshooting.
 - **Screenshots** of the editor, overlays, settings and LED calibration in the README and docs
   (`docs/images/`). `scripts/screenshots.py` renders them offscreen from the demo layout with fake
   keypads and Companion data, so they can be regenerated after UI changes.
@@ -15,6 +28,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - The key colour menu's "Key N colour" heading didn't show (the theme draws section titles as a line).
 - The Companion surface size options were cut off in the layer panel; they're shorter now
   (`4×3 + 1 local row`), with the full description as a tooltip.
+- Firmware bundle extraction rejects traversal paths and oversized archives; serial and Satellite
+  protocol readers now bound frame sizes and discard malformed input.
+- Physical keypad messages require a matching USB identity handshake before host bridges process them;
+  malformed layouts now produce validation errors instead of crashing.
 
 ## [0.1.0] - 2026-09-25
 

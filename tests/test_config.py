@@ -1,4 +1,6 @@
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -87,6 +89,22 @@ def test_validate_bad_key_number():
     assert any("invalid key number" in e for e in cfg.validate(config))
 
 
+@pytest.mark.parametrize("bad", [
+    {"layers": [None]},
+    {"layers": [{"keys": {"0": None}}]},
+    {"layers": [{"keys": {"0": {"press": [{"type": "msc", "cue": 123}]}}}]},
+    {"layers": [{"keys": {}}], "overlay": {"rotation": "not-an-int"}},
+])
+def test_malformed_layouts_return_validation_errors(bad):
+    errors = cfg.validate(cfg.prune(bad))
+    assert errors
+
+
+def test_merge_defaults_rejects_non_object():
+    with pytest.raises(ValueError, match="JSON object"):
+        cfg.merge_defaults([])
+
+
 def test_prune_and_firmware_view():
     config = cfg.default_config()
     config["layers"][0]["keys"] = {"3": {"press": [], "hold": []},
@@ -120,3 +138,13 @@ def test_parse_combo():
 def test_shipped_firmware_config_matches_example():
     shipped = json.loads((ROOT / "firmware" / "config.json").read_text())
     assert shipped == cfg.firmware_view(cfg.prune(example_config()))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions")
+def test_save_keeps_file_permissions(tmp_path):
+    path = tmp_path / "shared.json"
+    path.write_text("{}")
+    path.chmod(0o644)
+    cfg.save(cfg.default_config(), path)
+    assert path.stat().st_mode & 0o777 == 0o644          # not narrowed to owner-only
+    assert list(tmp_path.iterdir()) == [path]             # no temp files left behind

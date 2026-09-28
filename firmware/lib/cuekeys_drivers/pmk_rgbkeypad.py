@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: LicenseRef-CueKeys-Source-Available-Reciprocal-1.0
 """Pimoroni Pico RGB Keypad Base."""
 
 from pmk.platform.rgbkeypadbase import RGBKeypadBase
